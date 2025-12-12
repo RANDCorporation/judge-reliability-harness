@@ -1,0 +1,69 @@
+[project]
+name = "judge-reliability-harness"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+	"config>=0.5.1",
+	"judges>=0.1.1",
+	"litellm>=1.77.0",
+	"openai>=1.107.0",
+	"pandas>=2.3.2",
+	"openpyxl>=3.1.5",
+	"pydantic>=2.11.7",
+	"pyyaml>=6.0.2",
+	"ratelimit>=2.2.1",
+	"scikit-learn>=1.7.2",
+	"sentence-transformers==5.1.1",
+	"truststore>=0.8.0",
+	"matplotlib>=3.10.7",
+	"seaborn>=0.13.2",
+	"uvicorn>=0.37.0",
+	"websockets>=15.0.1",
+	"wsproto>=1.2.0",
+	"fastapi>=0.119.1",
+	"iniconfig>=2.3.0",
+	"pluggy>=1.6.0",
+	"pytest>=8.4.2",
+	"cachetools>=6.2.1",
+	"google-auth>=2.41.1",
+	"pyasn1>=0.6.1",
+	"pyasn1-modules>=0.4.2",
+	"rsa>=4.9.1",
+	"jsonref>=1.1.0",
+	"anthropic>=0.71.0",
+	"inspect-ai>=0.3.140",
+	"typer>=0.20.0",
+	"seaborn>=0.13.2",
+	"matplotlib>=3.10.7",
+	"pytest>=8.4.2",
+	"google-genai>=1.50.1",
+]
+
+[project.scripts]
+jrh = "jrh.cli:main"
+
+[project.optional-dependencies]
+dev = [
+	"pytest>=8.0.0",
+	"ruff==0.13.2",
+	"ipykernel==7.0.1",
+	"quarto-cli>=1.8.26",
+]
+
+[tool.uv]
+package = true
+
+[tool.pytest.ini_options]
+python_files = ["test_*.py"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.format]
+indent-style = "tab"
+docstring-code-format = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

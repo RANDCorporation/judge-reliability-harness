@@ -1,0 +1,42 @@
+---
+title: "Installation"
+---
+
+# Requirements
+
+- Python 3.13 or newer
+- [uv](https://docs.astral.sh/uv/install/) for environment and dependency management
+- Access credentials for judge and synthetic generation APIs (for example `OPENAI_API_KEY`)
+- Quarto CLI (`quarto check`) if you plan to build these docs locally
+
+# Set Up Environment
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/tasp-evals/judge-reliability-harness.git
+   cd judge-reliability-harness
+   ```
+2. Create and sync the project environment with uv:
+   ```bash
+   uv sync --extra dev --native-tls
+   ```
+   The command installs runtime and development dependencies defined in `pyproject.toml`.
+3. Activate the uv-managed virtual environment:
+   ```bash
+   source .venv/bin/activate
+   ```
+   On Windows Command Prompt use `.venv\Scripts\activate`, or PowerShell `.\.venv\Scripts\Activate.ps1`.
+
+# Configure Credentials
+
+Create a `.env` file in the project root with API keys and organization IDs required by your judge providers:
+
+```bash
+cat <<'EOF' > .env
+OPENAI_API_KEY=replace_me
+OPENAI_ORG_ID=replace_me
+EOF
+```
+
+If your environment enforces a private certificate authority, configure trust settings to ensure HTTP clients recognize the SSL chain before running the harness.
+

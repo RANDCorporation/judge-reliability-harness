@@ -1,0 +1,1 @@
+Evaluate writing quality for high school persuasive essays based on the provided scoring rubric.

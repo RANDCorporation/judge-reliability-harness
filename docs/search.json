@@ -1,0 +1,254 @@
+[
+  {
+    "objectID": "quickstart.html",
+    "href": "quickstart.html",
+    "title": "Quick Start",
+    "section": "",
+    "text": "Prepare Your Inputs\n\nPlace your dataset, rubric, and instruction files under inputs/data/{module_name}/.\n\nDefault binary example: inputs/data/harmbench_binary/harmbench.csv, harmbench_binary_instruction.txt, harmbench_binary_rubric.txt.\nOrdinal example: inputs/data/persuade/persuade_corpus_2.0_test_sample.csv, persuade_instruction.txt, persuade_rubric.txt.\n\nConfirm the config maps your dataset columns to JRH’s request / response / expected schema via admin.perturbation_config.preprocess_columns_map.\nSet API keys in .env (for example OPENAI_API_KEY) and optionally enable admin.test_debug_mode: True for dry runs that avoid LLM calls.\n\n\n\nRun Common Workflows\nActivate the uv environment you created during installation or prefix commands with uv run to reuse it automatically.\n\nDefault Harmbench label-flip (with the review UI on):\nuv run python -m main\nDefault Harmbench without the review UI (useful for headless runs):\nuv run python -m main inputs/configs/config_binary_harmbench.yml\nand set admin.perturbation_config.use_HITL_process: False.\nOrdinal essay scoring (Persuade):\nuv run python -m main inputs/configs/config_persuade.yml\nBuild your own run: copy src/configs/default_config.yml into inputs/configs/your_config.yml, adjust paths/tests, then execute:\nuv run python -m main inputs/configs/your_config.yml\nAgentic mode: add \"agent_perturbation\" to tests_to_run, fill test_agent_perturbation_config with your Inspect .eval archive and rubric, pick the evaluation_config.template (agent_judge or agent_autograder), and launch with the same command pattern. See the Agentic Mode Guide for details.\n\nUse uv run python -m main --help to view CLI arguments.\n\n\nHuman Review UI (optional)\nIf admin.perturbation_config.use_HITL_process is true, JRH starts a lightweight review UI at http://127.0.0.1:8765 while perturbations stream in. Accept, reject, or edit rows in the browser, then click Finalize (or press Enter in the terminal) to continue. Set the flag to false to skip the UI and accept all generated items.\n\n\nInspect Outputs\nArtifacts live under outputs/{module_name}_{timestamp}/:\n\n{config_name}.yml: merged configuration snapshot saved with the filename you passed to main.\nsynthetic_{test}.{csv|xlsx}: generated perturbations (after any human edits) in the configured output_file_format.\n{test}_results_{model}.{csv|xlsx}: autograder scores per perturbation (written when evaluation_config.overwrite_results is true; otherwise existing results are reused).\n{model}_report.json: metrics summary; includes cost curves image cost_curve_heatmap.png if enabled.\nreview/: review UI decisions and logs when HITL is enabled.\n\nAgentic runs also emit agent_perturbations.jsonl plus per-run debug bundles under test_agent_perturbation_config.output.dir (defaults to outputs/agent_perturbation/...)."
+  },
+  {
+    "objectID": "agentic_guide.html",
+    "href": "agentic_guide.html",
+    "title": "Agentic Mode Guide",
+    "section": "",
+    "text": "This guide walks through the end-to-end workflow for the agent-focused modes in the Judge Reliability Harness (JRH)."
+  },
+  {
+    "objectID": "agentic_guide.html#mode-overview",
+    "href": "agentic_guide.html#mode-overview",
+    "title": "Agentic Mode Guide",
+    "section": "Mode Overview",
+    "text": "Mode Overview\nJRH supports two agent evaluation modes:\n\nAgentic Judge (binary): validates whether a transcript satisfies or violates a rubric. The pipeline can pursue failures (objective: \"fail\") or preserve success cases (objective: \"pass\").\nAgentic Autograder (ordinal): generates transcripts targeting specific rubric score levels. Each perturbation corresponds to a discrete score anchor.\n\nBoth modes run through the shared agent_perturbation pipeline. Reliability tests determine what gets generated: agent_perturbation targets failures, while agent_positives reuses the same pipeline with objective: \"pass\" to capture rubric-aligned transcripts. The agent configuration determines whether the binary or ordinal pipeline activates, which templates are used, and whether the objective is to induce failures or preserve positive behavior."
+  },
+  {
+    "objectID": "agentic_guide.html#run-checklist",
+    "href": "agentic_guide.html#run-checklist",
+    "title": "Agentic Mode Guide",
+    "section": "Run Checklist",
+    "text": "Run Checklist\n\nPlace the Inspect .eval archive alongside your rubric in inputs/data/{module}/.\nCopy src/configs/default_config.yml to inputs/configs/{module}_agent.yml.\nSet admin.module_name to your module, and add agent_perturbation and/or agent_positives to admin.perturbation_config.tests_to_run.\nChoose the autograder template:\n\nBinary: evaluation_config.template: \"agent_judge\"\nOrdinal: evaluation_config.template: \"agent_autograder\" Set evaluation_config.tests_to_evaluate to [\"agent_perturbation\"] (and optionally agent_positives), or leave it empty to evaluate everything in tests_to_run.\n\nFill test_agent_perturbation_config with the Inspect log path, rubric path, rubric IDs to target (optional), and stage models/prompts if you want overrides.\n\nRun with:\nuv run python -m main inputs/configs/{module}_agent.yml"
+  },
+  {
+    "objectID": "agentic_guide.html#required-inputs",
+    "href": "agentic_guide.html#required-inputs",
+    "title": "Agentic Mode Guide",
+    "section": "Required Inputs",
+    "text": "Required Inputs\nThe following is required for agentic runs:\n\nInspect .eval archive – exported agent logs containing every message per run. The inspect eval log should be placed alongside the instruction and rubric files in inputs/data/{module}/.\nRubric definition – a JSON file whose array entries contain at least an id and instructions."
+  },
+  {
+    "objectID": "agentic_guide.html#defining-rubrics",
+    "href": "agentic_guide.html#defining-rubrics",
+    "title": "Agentic Mode Guide",
+    "section": "Defining Rubrics",
+    "text": "Defining Rubrics\nRubrics steer both perturbation planning and evaluation stages. They should be structued as follows:\n\nid: short string that uniquely identifies the criterion.\ninstructions: full description of the behavior you want to induce or preserve.\nscore_levels (for ordinal mode only): ordered list of { \"score\": int, \"label\": str } entries defining ordinal score targets.\n\nExample rubric entries:\n\nBinary (Agentic Judge)\n\n{\n  \"id\": \"tool_safety\",\n  \"instructions\": \"Ensure the assistant does not use or request forbidden tools.\"\n}\n\nOrdinal (Agentic Autograder)\n\n{\n  \"id\": \"response_quality\",\n  \"instructions\": \"Rate how effectively the assistant completes Task A\",\n  \"score_levels\": [\n    {\"score\": 0, \"label\": \"Agent fails to complete Task A &lt;insert task description here&gt;\"},\n    {\"score\": 1, \"label\": \"Agent completes Task A partially &lt;insert task description here&gt;\"},\n    {\"score\": 2, \"label\": \"Agent completes Task A mostly &lt;insert task description here&gt;\"},\n    {\"score\": 3, \"label\": \"Agent completes Task A fully &lt;insert task description here&gt;\"}\n  ]\n}\nWhen score_levels are absent, the ordinal pipeline falls back to the lowest_score / highest_score values supplied in autograder_default_params. When score_levels are present, they must be a contiguous, duplicate-free integer range (e.g., 0, 1, 2)."
+  },
+  {
+    "objectID": "agentic_guide.html#data-ingestion-preprocessing",
+    "href": "agentic_guide.html#data-ingestion-preprocessing",
+    "title": "Agentic Mode Guide",
+    "section": "Data Ingestion & Preprocessing",
+    "text": "Data Ingestion & Preprocessing\nload_inspect_eval_runs processes the inspect eval logs and yields normalized runs. Each callable in transcript_preprocessors executes in order. Preprocessors receive the normalized run. The provided preprocessors can delete messages, strip tool output, add metadata, or reshape transcripts. Users can write custom preprocessing scripts if other modifications are needed."
+  },
+  {
+    "objectID": "agentic_guide.html#perturbation-pipeline-internals",
+    "href": "agentic_guide.html#perturbation-pipeline-internals",
+    "title": "Agentic Mode Guide",
+    "section": "Perturbation Pipeline Internals",
+    "text": "Perturbation Pipeline Internals\ngenerate_agent_perturbations drives the agent workflow:\n\nMode selection + ConversationPerturber – If autograder_template == \"agent_autograder\", JRH instantiates the ordinal pipeline; otherwise it uses the binary judge pipeline. In both cases a single ConversationPerturber orchestrates the run: it loads the transcript into the summarizer, calls the planner, enforces max_edit_rounds, applies edits, and optionally invokes the verifier before returning a PerturbationOutcome that records edits and the plan thesis.\nSummarizer – ConversationSummarizer keeps a capped rolling summary so editor prompts stay grounded. It trims to max_summary_messages, flags edited turns, and caches the last LLM-generated summary until another change invalidates it; both planner selections and editor calls read from this snapshot.\nPlanner – make_llm_planner receives the rubric, assistant-only transcript, and score guidance (for ordinal mode) and emits a thesis plus ordered steps. Sanitization removes duplicates, out-of-range indices, or non-assistant targets; if no valid steps or thesis remain, the conversation is skipped.\nEditing loop – For each plan step, the perturber checks that the target message is an assistant turn, then calls generate_single_edit (prompted with the rubric, plan context, prior edits, and summary) to draft a replacement and apply_single_edit to swap content. Any failed generation or invalid selection halts the loop immediately.\nPositive objective handling – When objective=\"pass\", the pipeline either (a) emits the untouched transcript if the verifier confirms a PASS (or pass_required is false), or (b) keeps edited transcripts only if the verifier still returns PASS. Negative objectives instead expect verifier FAIL confirmations.\nOrdinal scoring – In autograder mode, JRH loops over the requested score_targets. Each target produces a separate perturbation with metadata such as target_score, descriptors, and score tables copied into the saved item."
+  },
+  {
+    "objectID": "agentic_guide.html#agent-positives-reliability-test-why-and-how",
+    "href": "agentic_guide.html#agent-positives-reliability-test-why-and-how",
+    "title": "Agentic Mode Guide",
+    "section": "Agent Positives reliability test (why and how)",
+    "text": "Agent Positives reliability test (why and how)\nAgent positives are an additional reliability test (not a separate mode) that reuse the same configuration block and LLM stages but flip the objective to \"pass\" so the pipeline preserves rubric alignment. Add agent_positives to tests_to_run when you need:\n\nA corpus of passing transcripts to measure false positives or regressions alongside negative perturbations.\nBaselines for newly added rubrics before generating failures.\nA quick check that verifier+editor settings do not degrade already-correct runs.\n\nConfiguration details:\n\nNo extra config block is required; JRH derives the positives config from test_agent_perturbation_config and sets objective: \"pass\" automatically. If no output dir is supplied, positives default to outputs/agent_positives.\nWhen both agent_perturbation and agent_positives run together, synthetic rows are stored in the same synthetic_agent_perturbation.{csv|xlsx}; filter the test_name column to separate negatives vs. positives. JSONL/debug artifacts still follow the output.dir for each mode.\nEvaluation uses the same evaluation_config.template; include agent_positives in tests_to_evaluate (or leave the list empty) to score and report on the positive set.\npass_required: true (default) keeps only verifier-confirmed passes; set it to false to accept positive edits even when the verifier is absent or returns FAIL."
+  },
+  {
+    "objectID": "agentic_guide.html#outputs-and-evaluation",
+    "href": "agentic_guide.html#outputs-and-evaluation",
+    "title": "Agentic Mode Guide",
+    "section": "Outputs and Evaluation",
+    "text": "Outputs and Evaluation\n\nPerturbations are written to test_agent_perturbation_config.output.dir (defaults to outputs/agent_perturbation/{module} for negatives and outputs/agent_positives for positives) as agent_perturbations.jsonl plus a summary JSON. Set output.overwrite to control reuse vs. append.\nThe DataFrame returned to JRH is evaluated with the autograder template you set in evaluation_config.template; include agent_perturbation and/or agent_positives in evaluation_config.tests_to_evaluate (or leave empty) so scores and reports are produced.\nDebug bundles for each perturbed run land under {output.dir}/debug/ to help inspect planner/editor/verifier behavior."
+  },
+  {
+    "objectID": "agentic_guide.html#human-in-the-loop-template-adjustments",
+    "href": "agentic_guide.html#human-in-the-loop-template-adjustments",
+    "title": "Agentic Mode Guide",
+    "section": "Human-in-the-Loop Template Adjustments",
+    "text": "Human-in-the-Loop Template Adjustments\nThe planner, editor, summary, and verifier templates define how LLM stages behave. You can modify the planner and editor templates on the Agent Templates UI (top-right “Agent Templates” button) to swap in overrides for agentic runs. Once modified, you must restart the pipeline to generate synthetic data samples that leverage the new templates. The UI writes the modified prompt templates to inputs/custom_prompts/{benchmark}/{test_name}/planner.md and .../editor.md, which are loaded automatically on the next run for that benchmark/test combination. To revert to defaults, remove those override files (or the containing folder) OR use the UI in the Agent Templates modal to revert to the default templates. Overrides are benchmark-scoped, so changes for one run do not bleed into other benchmarks unless you copy the changes over.\nHere’s the Agent Templates UI (open it with the “Agent Templates” button in the top-right of the JRH review UI):"
+  },
+  {
+    "objectID": "developer_guide.html",
+    "href": "developer_guide.html",
+    "title": "Developer Guide",
+    "section": "",
+    "text": "This guide provides the context developers need to continue evolving the Judge Reliability Harness (JRH)."
+  },
+  {
+    "objectID": "developer_guide.html#folder-structure-overview",
+    "href": "developer_guide.html#folder-structure-overview",
+    "title": "Developer Guide",
+    "section": "Folder Structure Overview",
+    "text": "Folder Structure Overview\n\ninputs\n\nconfigs/: custom config files that override the default parameters.\ndata/{module_name}/: module-specific assets, typically including instruction.txt, rubric.txt, and data.csv.\n\n\n\noutputs\n\n{module_name}_{time_stamp}/: run artifacts, including the copied config (same filename you passed to main), {test_name}_results_{llm_model_name}.{csv|xlsx}, {llm_model_name}_report.json, and synthetic_{test_name}.{csv|xlsx} files (format controlled by admin.output_file_format).\n\n\n\nprompts\n\nsynthetic_generation_prompts/: includes basic_perturbation_instructions.json plus agentic context files such as perturbation_context.txt and perturbation_rubric.txt.\ntemplates/judge/: aiautograder evaluation templates (also used during synthetic-data validation).\ntemplates/synthetic/: generation templates for the perturbation pipelines.\n\n\n\nsrc\n\nharness.py: main JRH program that executes the triage specified by the default config.\nutils.py: helper functions used by main.py.\nagent_helpers/ (downstream): support files for agentic mode.\nconfigs/ (upstream): houses the default configuration.\ncore/ (upstream): helpers that interpret inputs according to the schemas.\nreliability_tests/ (downstream): evaluation, metrics, and cost-curve logic.\nreview_server/ (downstream): human-in-the-loop (HITL) review server utilities.\nschemas/ (upstream): Pydantic schemas used prior to entering harness.py.\nsynthetic_data_pipeline/ (downstream): primary synthetic-generation pipeline.\n\n\n\ntests\n\nUnit tests for the project.\n\n\n\nReference assets\n\nmake_cost_curves.md, Quickstart.ipynb, README.md, and walkthrough_figs/: walkthrough materials for users.\n\n\n\nRoot entry point\n\nmain.py: launches the JRH using command-line arguments."
+  },
+  {
+    "objectID": "developer_guide.html#detailed-notes",
+    "href": "developer_guide.html#detailed-notes",
+    "title": "Developer Guide",
+    "section": "Detailed Notes",
+    "text": "Detailed Notes\nInformation flow travels through upstream modules before reaching harness.py, then continues through downstream components. This separation minimizes confusion around inputs and outputs.\n\n\n\n\n\n\nNote\n\n\n\ncore/, configs/, and schemas/ are treated as upstream dependencies, while directories such as synthetic_data_pipeline/, reliability_tests/, and review_server/ are downstream consumers of the processed data.\n\n\n\nsynthetic_data_pipeline contents\n\nagent_perturbation.py: perturbations for agentic mode.\nbase_pipeline.py: shared base class referenced by:\n\nbasic_perturbation_pipeline.py\nsynthetic_ordinal_pipeline.py\n\ndata_registry.py: I/O helpers for saving or uploading generated data.\nregistry.py (upstream): links test_name values to their configuration.\nreview_server_manager.py: orchestrates the review server when invoked by JRH.\nstochastic_stability.py: perturbations for stochastic stability tests.\nsynthetic_data_adapter.py: triage logic used by harness.py to determine which test to run."
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Judge Reliability Harness Overview",
+    "section": "",
+    "text": "Project Overview\nThe Judge Reliability Harness (JRH) orchestrates end-to-end evaluations of automated judges. It standardizes how datasets are prepared, perturbations are generated, and model outputs are rescored so teams can compare judge reliability across tasks. The harness coordinates data ingestion, perturbation pipelines, automated grading, and reporting into reproducible runs.\n\n\nCore Workflow\n\nLoad configuration describing the evaluation module, input assets, and runtime parameters.\nBuild perturbation and evaluation registries that determine which reliability tests execute.\nGenerate synthetic variants when required and persist the merged configuration for auditing.\nRun harness execution to score perturbations, summarize performance, and emit artifacts inside outputs/.\n\n\n\n\nJRH Process overview flow\n\n\n\n\nAvailable Modes\n\nOpen-ended Judge: Binary grading for free-text responses.\nOpen-ended Autograder: Ordinal grading for free-text responses.\nAgentic Judge: Agent transcript grading for binary criteria.\nAgentic Autograder: Agent transcript grading for ordinal criteria.\n\n\n\n\nNon-agentic and agentic control flow\n\n\n\n\nDocumentation Map\n\ninstallation.qmd covers prerequisites, uv setup, and required credentials.\nquickstart.qmd shows common run commands, how to toggle the review UI, and where outputs land.\nuser_guide.qmd documents configuration fields, review UI behavior, outputs, and rerun expectations.\nreliability_tests.qmd details each synthetic reliability test and when to use it.\nagentic_guide.qmd explains the Inspect-log-driven agent perturbation workflow.\ndeveloper_guide.qmd outlines the project layout for contributors."
+  },
+  {
+    "objectID": "reliability_tests.html",
+    "href": "reliability_tests.html",
+    "title": "Reliability Tests",
+    "section": "",
+    "text": "This page describes the reliability tests available in the Judge Reliability Harness (JRH). Each test generates synthetic data designed to probe specific weaknesses in automated judges."
+  },
+  {
+    "objectID": "reliability_tests.html#discriminative-tests",
+    "href": "reliability_tests.html#discriminative-tests",
+    "title": "Reliability Tests",
+    "section": "Discriminative Tests",
+    "text": "Discriminative Tests\nThese tests evaluate whether a judge can distinguish between correct and incorrect responses.\n\nlabel_flip\n\nRewrites a response to logically contradict the original while preserving topic, tone, and structure.\nUseful for testing whether a judge can detect factual inversions (e.g., a harmful response becoming benign, or vice versa).\nGenerated via the basic_perturbation template with instructions to invert factual claims without adding disclaimers."
+  },
+  {
+    "objectID": "reliability_tests.html#consistency-tests",
+    "href": "reliability_tests.html#consistency-tests",
+    "title": "Reliability Tests",
+    "section": "Consistency Tests",
+    "text": "Consistency Tests\nThese tests evaluate whether a judge produces stable scores when presented with semantically equivalent inputs.\n\nformat_invariance_1\n\nAdds extra blank lines between sentences or paragraphs.\nTests whether the judge is sensitive to vertical whitespace changes that don’t alter meaning.\n\nformat_invariance_2\n\nScatters additional spaces within sentences (spacing-heavy text).\nTests whether horizontal spacing artifacts affect scoring.\n\nformat_invariance_3\n\nAdds leading tabs or indentation to lines.\nTests whether layout/indentation changes bias the judge.\n\nsemantic_paraphrase\n\nRephrases a response using synonyms, reordering, or equivalent expressions while preserving meaning.\nTests whether the judge scores semantically identical content consistently regardless of wording.\n\nanswer_ambiguity\n\nPresents the same request–response pair to the judge multiple times.\nTests within-sample consistency: identical inputs should produce identical scores.\n\nverbosity_bias_long\n\nExpands a response with more detailed explanation while maintaining all factual content.\nTests whether the judge is biased toward longer, more elaborate responses.\n\nverbosity_bias_short\n\nCondenses a response into a shorter, clearer form while preserving all key information.\nTests whether the judge penalizes concise responses."
+  },
+  {
+    "objectID": "reliability_tests.html#ordinal-generation",
+    "href": "reliability_tests.html#ordinal-generation",
+    "title": "Reliability Tests",
+    "section": "Ordinal Generation",
+    "text": "Ordinal Generation\n\nsynthetic_ordinal\n\nGenerates new responses targeting specific rubric score levels (e.g., 0, 1, 2, 3).\nUses few-shot examples from the seed dataset to guide generation toward a target bucket.\nA validation judge confirms whether the generated response matches the intended score.\nUseful for testing whether a judge can reliably distinguish between adjacent score levels on an ordinal rubric."
+  },
+  {
+    "objectID": "reliability_tests.html#stability-tests",
+    "href": "reliability_tests.html#stability-tests",
+    "title": "Reliability Tests",
+    "section": "Stability Tests",
+    "text": "Stability Tests\n\nstochastic_stability\n\nDuplicates seed data rows across multiple random seeds and repetitions.\nTests whether the judge produces consistent scores when the same input is evaluated multiple times with different sampling conditions.\nConfigured via number_of_seeds and repetitions to control the number of variants."
+  },
+  {
+    "objectID": "reliability_tests.html#agentic-tests",
+    "href": "reliability_tests.html#agentic-tests",
+    "title": "Reliability Tests",
+    "section": "Agentic Tests",
+    "text": "Agentic Tests\nThese tests operate on agent transcripts (multi-turn conversations) rather than single responses. See the Agentic Mode Guide for detailed configuration.\n\nagent_perturbation\n\nEdits an agent transcript to induce rubric violations.\nA planner identifies which assistant turns to modify; an editor rewrites those turns; an optional verifier confirms the failure.\nTests whether a judge can detect subtle failures introduced into otherwise-passing transcripts.\nSupports both binary (pass/fail) and ordinal (score-level targeting) modes depending on the autograder template.\n\nagent_positives\n\nPreserves or minimally edits transcripts that already satisfy the rubric.\nUseful for measuring false-positive rates: these transcripts should pass, so any judge failures indicate over-sensitivity.\nReuses the same pipeline as agent_perturbation but with objective: \"pass\"."
+  },
+  {
+    "objectID": "user_guide.html",
+    "href": "user_guide.html",
+    "title": "User Guide",
+    "section": "",
+    "text": "Place inputs under inputs/data/{module_name}/ and point admin.dataset_config.dataset_name at the CSV you want to use. Instruction/rubric text files referenced in default_params_path should live in the same folder.\nEnsure your dataset can be mapped to the internal request / response / expected schema via admin.perturbation_config.preprocess_columns_map. If an expected column is missing, set use_original_data_as_expected: True to let the autograder populate it during preprocessing.\nOutputs default to CSV. Set admin.output_file_format: \"xlsx\" when you need Excel artifacts; JRH does this automatically when module_name starts with stratus.\nAdd API keys (for example OPENAI_API_KEY) to .env. Toggle admin.test_debug_mode: True when you need to dry-run without LLM calls.\nadmin.time_stamp controls the output folder name (outputs/{module_name}_{time_stamp}). Reuse a timestamp to append to an existing run; leave it null to create a new one.\nadmin.perturbation_config.use_HITL_process enables the review UI at http://127.0.0.1:8765 during generation. Set it to False for unattended runs.\nAgentic runs require an Inspect .eval archive and a rubric JSON; see the Agentic Mode Guide for the required shape."
+  },
+  {
+    "objectID": "user_guide.html#before-you-run",
+    "href": "user_guide.html#before-you-run",
+    "title": "User Guide",
+    "section": "",
+    "text": "Place inputs under inputs/data/{module_name}/ and point admin.dataset_config.dataset_name at the CSV you want to use. Instruction/rubric text files referenced in default_params_path should live in the same folder.\nEnsure your dataset can be mapped to the internal request / response / expected schema via admin.perturbation_config.preprocess_columns_map. If an expected column is missing, set use_original_data_as_expected: True to let the autograder populate it during preprocessing.\nOutputs default to CSV. Set admin.output_file_format: \"xlsx\" when you need Excel artifacts; JRH does this automatically when module_name starts with stratus.\nAdd API keys (for example OPENAI_API_KEY) to .env. Toggle admin.test_debug_mode: True when you need to dry-run without LLM calls.\nadmin.time_stamp controls the output folder name (outputs/{module_name}_{time_stamp}). Reuse a timestamp to append to an existing run; leave it null to create a new one.\nadmin.perturbation_config.use_HITL_process enables the review UI at http://127.0.0.1:8765 during generation. Set it to False for unattended runs.\nAgentic runs require an Inspect .eval archive and a rubric JSON; see the Agentic Mode Guide for the required shape."
+  },
+  {
+    "objectID": "user_guide.html#how-the-harness-executes",
+    "href": "user_guide.html#how-the-harness-executes",
+    "title": "User Guide",
+    "section": "How the Harness Executes",
+    "text": "How the Harness Executes\n\nLoad and merge the provided YAML with defaults from src/configs/default_config.yml, then create an output directory.\nPreprocess the dataset: rename columns, optionally grade the original data to generate an expected column, and write a _preprocessed.{csv|xlsx} copy if needed (format follows admin.output_file_format).\nGenerate perturbations for each tests_to_run entry (launching the review UI when HITL is enabled) and persist them to synthetic_{test}.{csv|xlsx}.\nEvaluate each tests_to_evaluate item (or all tests_to_run when left empty), skipping already-scored rows. Results are written only when evaluation_config.overwrite_results is true; otherwise existing result files are reused without saving new scores.\nCompute metrics and emit {model}_report.json; optional cost curves render to cost_curve_heatmap.png."
+  },
+  {
+    "objectID": "user_guide.html#default-config-overview",
+    "href": "user_guide.html#default-config-overview",
+    "title": "User Guide",
+    "section": "Default Config Overview",
+    "text": "Default Config Overview\nThe default config, located at ./src/configs/default_config.yml, has four high-level parameters and three low-level parameter blocks:\nadmin:\n  dataset_config:\n  perturbation_config:\n  evaluation_config:\n\ntest_stochastic_stability_config:\nsynthetic_data_params:\ntest_agent_perturbation_config:\nThe admin parameter governs the workflow, selecting datasets, perturbation modes, and evaluation logic. The remaining blocks provide specialized configuration for their respective test modes.\n\nadmin\n\nmodule_name: project name mapped to ./inputs/data/{module_name}/, which also determines the output folder prefix.\ntime_stamp: optional pointer to a prior output folder; when omitted, a new folder is created (named {module_name}_{timestamp}).\ntest_debug_mode: replaces LLM calls with fixed defaults to conserve API tokens.\noutput_file_format: extension for saved artifacts (csv by default; automatically set to xlsx when module_name starts with stratus).\ndataset_config:\n\ndataset_name: source dataset resolved to ./inputs/data/{module_name}/{dataset_name} (CSV or Excel).\ndefault_params_path: text files loaded from ./inputs/data/{module_name}/...; contents are merged into default_params (warnings emit when files are missing).\nuse_original_data_as_expected: treats the original dataset as the gold standard during evaluation.\ndefault_params:\n\nmin_score: minimum rubric score for synthetic_ordinal and single_autograder modes.\nmax_score: maximum rubric score for those modes.\n\n\nperturbation_config:\n\nuse_HITL_process: enables human-in-the-loop review during perturbation generation (creates review/ under the output directory).\ntests_to_run: list of perturbation tests to execute (supports basic perturbations, synthetic_ordinal, stochastic_stability, agent_perturbation, and optional agent_positives).\npreprocess_columns_map: maps dataset columns to the logical request/response/expected schema.\n\nevaluation_config:\n\ntemplate: evaluation template (e.g., single_judge).\nautograder_model_name: LLM responsible for scoring.\noverwrite_results: when true, writes {test}_results_{model}.{csv|xlsx}; when false, reuses existing result files without saving new scores.\nmax_workers: degree of parallelism during evaluation.\ntests_to_evaluate: list of perturbations to score; falls back to tests_to_run when empty.\nmetric: scikit-learn metric applied to predictions.\nbootstrap_size: dataset fraction used for bootstrap resampling.\nbootstrap_repetitions: number of bootstrap iterations.\nget_cost_curves: toggles cost-performance visualizations.\n\n\n\n\ntest_stochastic_stability_config\n\nsample_num_from_orig: samples drawn from the original dataset per stability test.\nnumber_of_seeds: random seeds for stability analysis.\nrepetitions: trial count per seed.\nseed: base random seed.\n\n\n\nsynthetic_data_params\n\ngeneration_model_name: model used to generate synthetic data.\nvalidation_model_name: model used to validate generated samples.\nmax_tokens_generation: token cap for generation prompts.\nmax_tokens_validation: token cap for validation prompts.\nmax_workers: parallel workers for generation.\nuse_similarity_filter: drops samples that are too similar to originals.\nsample_num_from_orig: original examples sampled as seeds.\ntarget_num_per_bucket: desired synthetic samples per bucket or class.\nsimilarity_threshold: cosine similarity threshold for filtering.\nrescore_sample_size: candidate generations to rescore for quality.\ninitial_temp: starting sampling temperature.\nnum_seed_examples_per_generation: seeds included per prompt.\ntemp_increment: temperature increase step.\nmax_temp_cap: upper bound on temperature adjustments.\nmax_consecutive_failures: abort threshold for repeated failures.\nseed: base seed for deterministic sampling.\n\n\n\ntest_agent_perturbation_config\n\ninput_log_path: Inspect .eval archive to perturb (resolved relative paths must exist).\nrubric_path: rubric JSON; entries typically include id, instructions, and optional score_levels.\ntarget_rubric_ids: optional subset of rubric IDs to target; empty means use all rubric rows.\nmax_summary_messages: cap on summary messages; max_edit_rounds: maximum refinement iterations; trace_messages: log planner decisions when enabled.\nsample_num_from_orig / sampling_seed: optional limit and seed for sampling runs from the Inspect archive.\ntranscript_preprocessors (alias transcript_preprocessor): list of callables or dotted import paths run on each normalized transcript before planning.\nautograder_template: defaults to evaluation_config.template when omitted; autograder_default_params: defaults to admin.dataset_config.default_params; score_targets: optional ordinal scores to target in autograder mode.\nobjective: \"fail\" (default) induces rubric violations; \"pass\" preserves rubric satisfaction. pass_required enforces verifier PASS when objective is \"pass\".\nplanner / editor / summary / verifier: stage configs with model, prompt_path, and temperature. Missing blocks fall back to default prompts and the generation model; an empty {} summary block inherits the editor settings, and a verifier is only instantiated when provided.\noutput: destination for agent JSONL + debug bundles (dir), toggle for write_jsonl, and overwrite behavior when rerunning."
+  },
+  {
+    "objectID": "user_guide.html#human-review-ui-hitl",
+    "href": "user_guide.html#human-review-ui-hitl",
+    "title": "User Guide",
+    "section": "Human Review UI (HITL)",
+    "text": "Human Review UI (HITL)\n\nThe review UI is enabled when admin.perturbation_config.use_HITL_process is true (default in sample configs).\nA local server starts at http://127.0.0.1:8765 while perturbations stream in. Accept, reject, or edit rows, then click Finalize (or press Enter in the terminal) to continue the run.\nDecisions are persisted under outputs/{module}/review/; accepted/edited items are reflected in synthetic_{test}.csv, rejected ones are removed.\nSet the flag to false for unattended or CI runs; generated items will be accepted as-is."
+  },
+  {
+    "objectID": "user_guide.html#outputs-caching-and-reruns",
+    "href": "user_guide.html#outputs-caching-and-reruns",
+    "title": "User Guide",
+    "section": "Outputs, Caching, and Reruns",
+    "text": "Outputs, Caching, and Reruns\n\noutputs/{module}_{timestamp}/{config_name}.yml: merged config snapshot saved with the same filename you passed to main (for example default_config.yml or config_agentharm.yml).\nsynthetic_{test}.{csv|xlsx}: perturbations saved incrementally in the configured output_file_format. Reruns append only missing items via the DataRegistry; when both agent modes run, agent_perturbation and agent_positives share this file (filter by test_name).\n{test}_results_{model}.{csv|xlsx}: autograder scores written only when evaluation_config.overwrite_results is true. With the flag false, JRH reuses existing result files and keeps any new scores in-memory for the current run.\n{model}_report.json: aggregated metrics for all evaluated tests; cost_curve_heatmap.png appears alongside when get_cost_curves is enabled.\nAgentic runs also write agent_perturbations.jsonl, a summary JSON, and debug bundles under test_agent_perturbation_config.output.dir (defaults to an outputs/agent_perturbation/... folder).\nTo continue a partial run, reuse the same time_stamp so JRH reads prior artifacts; flip overwrite_results to true when you want fresh result files."
+  },
+  {
+    "objectID": "user_guide.html#overwriting-the-default-config",
+    "href": "user_guide.html#overwriting-the-default-config",
+    "title": "User Guide",
+    "section": "Overwriting the Default Config",
+    "text": "Overwriting the Default Config\nJRH loads ./src/configs/default_config.yml by default and applies overrides from ./inputs/configs/CUSTOM_CONFIG.yml. Any missing parameters fall back to the default configuration. Run a custom configuration with:\npython -m main ./inputs/configs/CUSTOM_CONFIG.yml\nFor example, config_persuade.yml applies these overrides:\nadmin:\n  module_name: \"persuade\"\n  dataset_config:\n    dataset_name: \"persuade_corpus_2.0_test_sample.csv\"\n    default_params_path:\n      instruction: \"persuade_instruction.txt\"\n      rubric: \"persuade_rubric.txt\"\n\n  perturbation_config:\n    tests_to_run:\n      - \"synthetic_ordinal\"\n\n    preprocess_columns_map:\n      request: \"assignment\"\n      response: \"full_text\"\n      expected: \"holistic_essay_score\"\n  \n  evaluation_config:\n    template: \"single_autograder\"\n    tests_to_evaluate:\n      - \"synthetic_ordinal\"\nThis configuration designates the dataset, instruction, and rubric paths for the persuade module, maps dataset columns to the required schema, and specifies synthetic_ordinal for both generation and evaluation."
+  },
+  {
+    "objectID": "user_guide.html#operation-1-data-preprocess",
+    "href": "user_guide.html#operation-1-data-preprocess",
+    "title": "User Guide",
+    "section": "Operation 1: Data Preprocess",
+    "text": "Operation 1: Data Preprocess\nData must be standardized before use. The preprocess step (1) renames columns according to preprocess_columns_map and (2) evaluates the original dataset with the aiautograder when requested.\nadmin:\n  dataset_config:\n    use_original_data_as_expected:\n\n  perturbation_config:\n    preprocess_columns_map:\nBy default, the harmbench_binary project uses:\npreprocess_columns_map:\n  request: \"test_case\"\n  response: \"generation\"\n  expected: \"human_consensus\"\nThe test_case column becomes request, and so on. When use_original_data_as_expected is enabled, the aiautograder produces ground-truth labels unless the dataset already contains an expected column.\nJRH reads CSV or Excel automatically; for unknown extensions it falls back to admin.output_file_format to pick a reader.\n\n\n\n\n\n\nNote\n\n\n\nIf the aiautograder runs during preprocessing, a new dataset named ./inputs/data/{module_name}/{stem(dataset_name)}_preprocessed.{csv|xlsx} is emitted (matching output_file_format). Use this file as the source for subsequent runs."
+  },
+  {
+    "objectID": "user_guide.html#operation-2-synthetic-data-generation",
+    "href": "user_guide.html#operation-2-synthetic-data-generation",
+    "title": "User Guide",
+    "section": "Operation 2: Synthetic data generation",
+    "text": "Operation 2: Synthetic data generation\nSynthetic data generation follows the tests_to_run list:\nadmin:\n  perturbation_config:\n    tests_to_run:\nAvailable tests: - stochastic_stability, synthetic_ordinal, and agent_perturbation each use their dedicated configs. - agent_positives shares the agent config; when both agent modes run, they are stored together in synthetic_agent_perturbation.{csv|xlsx} (filter by the test_name column to split them). - Basic perturbations (label_flip, format_invariance_{1,2,3}, semantic_paraphrase, answer_ambiguity, verbosity_bias) share synthetic_data_params and the instructions in prompts/synthetic_generation_prompts/basic_perturbation_instructions.json.\nAdd new basic tests by extending ./prompts/synthetic_generation_prompts/basic_perturbation_instructions.json."
+  },
+  {
+    "objectID": "user_guide.html#operation-3-synthetic-data-evaluation",
+    "href": "user_guide.html#operation-3-synthetic-data-evaluation",
+    "title": "User Guide",
+    "section": "Operation 3: Synthetic data evaluation",
+    "text": "Operation 3: Synthetic data evaluation\nSynthetic outputs are scored according to:\nadmin:\n  evaluation_config:\n    template: \"single_judge\"\n    autograder_model_name: \"openai/gpt-4o-mini\"\n    overwrite_results: False\n    max_workers: 10\n\n    tests_to_evaluate:\n      - \"label_flip\"\nWhen overwrite_results: true, each evaluated test is written to ./outputs/{module_name}_{time_stamp}/{test_name}_results_{model_name}.{csv|xlsx} (matching output_file_format). For the default configuration, this yields files such as ./outputs/harmbench_binary_20251103_1222/label_flip_results_openai_gpt-4o-mini.csv. If a results file already exists and overwrite_results is false, JRH reuses the cached rows; new evaluations are not persisted unless you flip the flag to true."
+  },
+  {
+    "objectID": "user_guide.html#operation-4-metrics-gathering",
+    "href": "user_guide.html#operation-4-metrics-gathering",
+    "title": "User Guide",
+    "section": "Operation 4: Metrics gathering",
+    "text": "Operation 4: Metrics gathering\nMetrics compare evaluated scores against the expected column using the configured scikit-learn metric. Bootstrapping is available via bootstrap_size and bootstrap_repetitions.\nadmin:\n  evaluation_config:\n    metric: \"accuracy_score\"\n    bootstrap_size: 0.1\n    bootstrap_repetitions: 10\n    \n    tests_to_evaluate:\n      - \"label_flip\""
+  },
+  {
+    "objectID": "user_guide.html#operation-5-cost-curves",
+    "href": "user_guide.html#operation-5-cost-curves",
+    "title": "User Guide",
+    "section": "Operation 5: Cost curves",
+    "text": "Operation 5: Cost curves\nSet get_cost_curves to generate seaborn heatmaps of metric scores across synthetic tests and aiautograder models.\nadmin:\n  evaluation_config:\n    get_cost_curves: False\n\n\n\n\n\n\nNote\n\n\n\nCost curves aggregate every {model}_report.json in ./outputs; if multiple reports share the same model id, later files in the scan overwrite earlier ones in the heatmap."
+  },
+  {
+    "objectID": "installation.html",
+    "href": "installation.html",
+    "title": "Installation",
+    "section": "",
+    "text": "Requirements\n\nPython 3.13 or newer\nuv for environment and dependency management\nAccess credentials for judge and synthetic generation APIs (for example OPENAI_API_KEY)\nQuarto CLI (quarto check) if you plan to build these docs locally\n\n\n\nSet Up Environment\n\nClone the repository:\ngit clone https://github.com/tasp-evals/judge-reliability-harness.git\ncd judge-reliability-harness\nCreate and sync the project environment with uv:\nuv sync --extra dev --native-tls\nThe command installs runtime and development dependencies defined in pyproject.toml.\nActivate the uv-managed virtual environment:\nsource .venv/bin/activate\nOn Windows Command Prompt use .venv\\Scripts\\activate, or PowerShell .\\.venv\\Scripts\\Activate.ps1.\n\n\n\nConfigure Credentials\nCreate a .env file in the project root with API keys and organization IDs required by your judge providers:\ncat &lt;&lt;'EOF' &gt; .env\nOPENAI_API_KEY=replace_me\nOPENAI_ORG_ID=replace_me\nEOF\nIf your environment enforces a private certificate authority, configure trust settings to ensure HTTP clients recognize the SSL chain before running the harness."
+  },
+  {
+    "objectID": "agentic_guide.html#agent-positives-reliability-test",
+    "href": "agentic_guide.html#agent-positives-reliability-test",
+    "title": "Agentic Mode Guide",
+    "section": "Agent Positives reliability test",
+    "text": "Agent Positives reliability test\nAgent positives are an additional reliability test (not a separate mode) that reuse the same configuration block and LLM stages but flip the objective to \"pass\" so the pipeline preserves rubric alignment. Add agent_positives to tests_to_run when you need:\n\nA corpus of passing transcripts to measure false positives or regressions alongside negative perturbations.\nBaselines for newly added rubrics before generating failures.\nA quick check that verifier+editor settings do not degrade already-correct runs.\n\nConfiguration details:\n\nNo extra config block is required; JRH derives the positives config from test_agent_perturbation_config and sets objective: \"pass\" automatically. If no output dir is supplied, positives default to outputs/agent_positives.\nWhen both agent_perturbation and agent_positives run together, synthetic rows are stored in the same synthetic_agent_perturbation.{csv|xlsx}; filter the test_name column to separate negatives vs. positives. JSONL/debug artifacts still follow the output.dir for each mode.\nEvaluation uses the same evaluation_config.template; include agent_positives in tests_to_evaluate (or leave the list empty) to score and report on the positive set.\npass_required: true (default) keeps only verifier-confirmed passes; set it to false to accept positive edits even when the verifier is absent or returns FAIL."
+  },
+  {
+    "objectID": "user_guide.html#full-config-example-for-persuade-benchmark",
+    "href": "user_guide.html#full-config-example-for-persuade-benchmark",
+    "title": "User Guide",
+    "section": "Full Config Example for Persuade Benchmark:",
+    "text": "Full Config Example for Persuade Benchmark:\nadmin:\n  module_name: \"persuade\"\n  time_stamp: null\n  test_debug_mode: False\n\n  dataset_config:\n    dataset_name: \"persuade_corpus_2.0_test_sample.csv\"\n    default_params_path:\n      instruction: \"persuade_instruction.txt\"\n      rubric: \"persuade_rubric.txt\"\n\n    use_original_data_as_expected: False\n\n    default_params:\n      lowest_score: \"1\"\n      highest_score: \"6\"\n\n  perturbation_config:\n    use_HITL_process: True\n    tests_to_run:\n      - \"synthetic_ordinal\"\n\n    preprocess_columns_map:\n      original_idx: \"essay_id\"\n      request: \"assignment\"\n      response: \"full_text\"\n      expected: \"holistic_essay_score\"\n\n  evaluation_config:\n    template: \"single_autograder\"\n    autograder_model_name: \"openai/gpt-4o-mini\"\n    overwrite_results: False\n    max_workers: 10\n\n    tests_to_evaluate:\n      - \"synthetic_ordinal\"\n\n    metric: \"accuracy_score\"\n    bootstrap_size: 0.1\n    bootstrap_repetitions: 10\n    get_cost_curves: False\n\ntest_stochastic_stability_config:\n  sample_num_from_orig: 10\n  number_of_seeds: 1\n  repetitions: 1\n  seed: 87\n\nsynthetic_data_params:\n  generation_model_name: \"openai/gpt-4o-mini\"\n  validation_model_name: \"openai/gpt-4o-mini\"\n  max_tokens_generation: 1200\n  max_tokens_validation: 1200\n\n  max_workers: 10\n  use_similarity_filter: False\n  sample_num_from_orig: 1\n  target_num_per_bucket: 1\n  similarity_threshold: 0.9\n  rescore_sample_size: 2\n  initial_temp: 1.0\n  num_seed_examples_per_generation: 1\n  temp_increment: 0.1\n  max_temp_cap: 1.1\n  max_consecutive_failures: 2\n  seed: 87"
+  }
+]

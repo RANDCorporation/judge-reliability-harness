@@ -1,0 +1,49 @@
+assumption-errors: Assumptions – Making new incorrect assumptions about the instruction.
+
+calculation-errors: Calculations – Introducing calculation errors in the answer. Eg: 2 + 3 = 5 → 2 + 3 = 6.
+
+coherence-errors: Coherence – Introducing errors that affect the coherence of the answer.
+
+comprehensiveness-errors: Comprehensiveness – Introducing vagueness, irrelevance or lack of context in the answer.
+
+consistency-errors: Consistency – Introducing errors in the “consistency” of the answer (like tone, terminology, etc.).
+
+contextual-errors: Contextual – Replacing fact with a contextually similar incorrect fact. Eg: electricity → magnetism.
+
+copying-numbers-errors: Copying Numbers – Introducing errors while considering the numbers mentioned in the instruction.
+
+do-less-errors: Do Less – Doing less than what is explicitly requested in the question.
+
+do-more-errors: Do More – Doing more than what is explicitly requested in the question.
+
+entity-errors: Entity – Replacing a named entity with an incorrect entity. Eg: Poland → London.
+
+final-answer-errors: Final Errors – Introducing errors only in the final reported answer while retaining the correct solution.
+
+formatting-errors: Ignore Format – Ignoring the formatting and other constraints mentioned in the question.
+
+grammar-errors: Grammar – Introducing grammatical errors in the answer. Eg: This is good → This are good.
+
+ignore-format-errors: Ignore Format – (Same as above) Ignoring formatting and constraints in the question.
+
+incorrect-fact: Incorrect Fact – Adding a new contextually relevant incorrect fact in the answer.
+
+incorrect-sequence-errors: Sequence Errors – Ignoring the sequence in the response when explicitly requested in the instruction.
+
+incorrect-units: Incorrect Units – Introducing errors in the units reported and considered in the answer.
+
+number-errors: Number Errors – Introducing errors in the various numbers reported in the answer. Eg: 1987 → 1887.
+
+opposite-fact: Opposite Fact – Replacing a fact in the answer with its negation. Eg: will have → won't have.
+
+remove-fact: Remove Fact – Removing a fact critical to the correctness and completeness of the answer.
+
+score_invariant: Score Invariant – Introducing modifications in the answer which would not result in a score penalty.
+
+seq-errors: Sequence Errors – (Alias) Ignoring explicit sequence instructions in the answer.
+
+spelling-errors: Spelling – Introducing “valid” spelling errors in the answer. Eg: Toxicity → Tocixity.
+
+superficial-errors: Grammar/Spelling – Wrapper over spelling/grammar-like surface-level changes.
+
+wrong-formula: Wrong Formula – Introducing errors in the formula used in the answer. Eg: πr² → 2πr.

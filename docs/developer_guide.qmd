@@ -1,0 +1,66 @@
+---
+title: "Developer Guide"
+---
+
+This guide provides the context developers need to continue evolving the Judge Reliability Harness (JRH).
+
+## Folder Structure Overview
+
+### inputs
+
+- `configs/`: custom config files that override the default parameters.
+- `data/{module_name}/`: module-specific assets, typically including `instruction.txt`, `rubric.txt`, and `data.csv`.
+
+### outputs
+
+- `{module_name}_{time_stamp}/`: run artifacts, including the copied config (same filename you passed to `main`), `{test_name}_results_{llm_model_name}.{csv|xlsx}`, `{llm_model_name}_report.json`, and `synthetic_{test_name}.{csv|xlsx}` files (format controlled by `admin.output_file_format`).
+
+### prompts
+
+- `synthetic_generation_prompts/`: includes `basic_perturbation_instructions.json` plus agentic context files such as `perturbation_context.txt` and `perturbation_rubric.txt`.
+- `templates/judge/`: aiautograder evaluation templates (also used during synthetic-data validation).
+- `templates/synthetic/`: generation templates for the perturbation pipelines.
+
+### src
+
+- `harness.py`: main JRH program that executes the triage specified by the default config.
+- `utils.py`: helper functions used by `main.py`.
+- `agent_helpers/` (downstream): support files for agentic mode.
+- `configs/` (upstream): houses the default configuration.
+- `core/` (upstream): helpers that interpret inputs according to the schemas.
+- `reliability_tests/` (downstream): evaluation, metrics, and cost-curve logic.
+- `review_server/` (downstream): human-in-the-loop (HITL) review server utilities.
+- `schemas/` (upstream): Pydantic schemas used prior to entering `harness.py`.
+- `synthetic_data_pipeline/` (downstream): primary synthetic-generation pipeline.
+
+### tests
+
+- Unit tests for the project.
+
+### Reference assets
+
+- `make_cost_curves.md`, `Quickstart.ipynb`, `README.md`, and `walkthrough_figs/`: walkthrough materials for users.
+
+### Root entry point
+
+- `main.py`: launches the JRH using command-line arguments.
+
+## Detailed Notes
+
+Information flow travels through upstream modules before reaching `harness.py`, then continues through downstream components. This separation minimizes confusion around inputs and outputs.
+
+::: callout-note
+`core/`, `configs/`, and `schemas/` are treated as upstream dependencies, while directories such as `synthetic_data_pipeline/`, `reliability_tests/`, and `review_server/` are downstream consumers of the processed data.
+:::
+
+### synthetic_data_pipeline contents
+
+- `agent_perturbation.py`: perturbations for agentic mode.
+- `base_pipeline.py`: shared base class referenced by:
+  - `basic_perturbation_pipeline.py`
+  - `synthetic_ordinal_pipeline.py`
+- `data_registry.py`: I/O helpers for saving or uploading generated data.
+- `registry.py` (upstream): links `test_name` values to their configuration.
+- `review_server_manager.py`: orchestrates the review server when invoked by JRH.
+- `stochastic_stability.py`: perturbations for stochastic stability tests.
+- `synthetic_data_adapter.py`: triage logic used by `harness.py` to determine which test to run.

@@ -1,0 +1,66 @@
+admin:
+  module_name: "agentharm"
+  time_stamp: null
+  test_debug_mode: False
+  output_file_format: "xlsx"
+
+  dataset_config:
+    dataset_name: "agentharm.eval"
+    default_params_path:
+      instruction: "agentharm_instructions.txt"
+      rubric: "agentharm_rubric.json"
+    use_original_data_as_expected: False
+    default_params: {}
+
+  perturbation_config:
+    use_HITL_process: True
+    tests_to_run:
+      - "agent_perturbation"
+    preprocess_columns_map:
+      request: "request"
+      response: "response"
+      expected: "expected"
+
+  evaluation_config:
+    template: "agent_judge"
+    autograder_model_name: "openai/gpt-4.1-mini"
+    overwrite_results: True
+    max_workers: 5
+    tests_to_evaluate: ["agent_perturbation"]
+    metric: "accuracy_score"
+    bootstrap_size: 0.1
+    bootstrap_repetitions: 1
+    get_cost_curves: False
+
+synthetic_data_params:
+  generation_model_name: "openai/gpt-4.1-mini"
+  validation_model_name: "openai/gpt-4.1-mini"
+  max_tokens_generation: 1200
+  max_tokens_validation: 1200
+  max_workers: 5
+  use_similarity_filter: False
+  sample_num_from_orig: 5
+  target_num_per_bucket: 2
+  similarity_threshold: 0.9
+  rescore_sample_size: 2
+  initial_temp: 1.0
+  num_seed_examples_per_generation: 1
+  temp_increment: 0.1
+  max_temp_cap: 1.3
+  max_consecutive_failures: 3
+  seed: 87
+
+test_agent_perturbation_config:
+  input_log_path: "./inputs/data/agentharm/agentharm.eval"
+  rubric_path: "./inputs/data/agentharm/agentharm_rubric.json"
+  target_rubric_ids:
+    - "agentharm"
+  max_summary_messages: 60
+  max_edit_rounds: 20
+  transcript_preprocessors:
+    - "agent_helpers.preprocessors.drop_reasoning_traces"
+  trace_messages: false
+  output:
+    dir: "./outputs/agent_perturbation/agentharm"
+    write_jsonl: true
+    overwrite: true

@@ -1,0 +1,27 @@
+project:
+  type: website
+  output-dir: .
+
+website:
+  title: "Judge Reliability Harness"
+  navbar:
+    left:
+      - text: "Overview"
+        href: index.qmd
+      - text: "Installation"
+        href: installation.qmd
+      - text: "Quick Start"
+        href: quickstart.qmd
+      - text: "User Guide"
+        href: user_guide.qmd
+      - text: "Reliability Tests"
+        href: reliability_tests.qmd
+      - text: "Agentic Mode Guide"
+        href: agentic_guide.qmd
+      - text: "Developer Guide"
+        href: developer_guide.qmd
+
+format:
+  html:
+    theme: cosmo
+    toc: true

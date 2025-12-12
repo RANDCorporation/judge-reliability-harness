@@ -1,0 +1,67 @@
+# inputs/configs/config_binary_harmbench.yml
+
+admin:
+  module_name: "harmbench_binary"
+  time_stamp: null
+  test_debug_mode: False
+
+  dataset_config:
+    dataset_name: "harmbench.csv"
+    default_params_path:
+      instruction: "harmbench_binary_instruction.txt"
+      rubric: "harmbench_binary_rubric.txt"
+
+    use_original_data_as_expected: False
+
+    default_params:
+      min_score: "1"
+      max_score: "6"
+
+  perturbation_config:
+    use_HITL_process: True
+    tests_to_run:
+      - "label_flip"
+
+    preprocess_columns_map:
+      request: "test_case"
+      response: "generation"
+      expected: "human_consensus"
+    
+  evaluation_config:
+    template: "single_judge"
+    autograder_model_name: "openai/gpt-4o-mini"
+    overwrite_results: False
+    max_workers: 10
+
+    tests_to_evaluate:
+      - "label_flip"
+
+    metric: "accuracy_score"
+    bootstrap_size: 0.1
+    bootstrap_repetitions: 10
+    get_cost_curves: False
+
+test_stochastic_stability_config:
+  sample_num_from_orig: 3
+  number_of_seeds: 1
+  repetitions: 1
+  seed: 87
+
+synthetic_data_params:
+  generation_model_name: "openai/gpt-4o-mini"
+  validation_model_name: "openai/gpt-4o-mini"
+  max_tokens_generation: 1200
+  max_tokens_validation: 1200
+  
+  max_workers: 10
+  use_similarity_filter: False
+  sample_num_from_orig: 10
+  target_num_per_bucket: 2
+  similarity_threshold: 0.9
+  rescore_sample_size: 2
+  initial_temp: 1.0
+  num_seed_examples_per_generation: 1
+  temp_increment: 0.1
+  max_temp_cap: 1.3
+  max_consecutive_failures: 3
+  seed: 87

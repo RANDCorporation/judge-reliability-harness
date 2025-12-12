@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JRH Review</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-enter { animation: slideIn 0.2s ease-out; }
+
+    .diff-block {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 0.5rem;
+      padding: 0.75rem;
+      margin-top: 0.75rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      box-sizing: border-box;
+      overflow-y: auto;
+      font-size: 0.85rem;
+    }
+
+    .diff-add {
+      background-color: #bbf7d0;
+      color: #166534;
+      padding: 0.15rem 0.3rem;
+      margin: 0 0.05rem;
+      border-left: 3px solid #22c55e;
+      border-radius: 0.35rem;
+      display: inline-block;
+    }
+
+    .diff-remove {
+      background-color: #fecaca;
+      color: #b91c1c;
+      text-decoration: line-through;
+      padding: 0.15rem 0.3rem;
+      margin: 0 0.05rem;
+      border-left: 3px solid #ef4444;
+      border-radius: 0.35rem;
+      display: inline-block;
+    }
+
+    /* Custom scrollbar */
+    textarea::-webkit-scrollbar, .scrollable::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    textarea::-webkit-scrollbar-track, .scrollable::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    textarea::-webkit-scrollbar-thumb, .scrollable::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    textarea::-webkit-scrollbar-thumb:hover, .scrollable::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    /* Input focus styles */
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* Button active states */
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .card [data-role="toggle"] {
+      cursor: pointer;
+    }
+
+    .card [data-field="toggle_icon"] {
+      transition: transform 0.2s ease;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-slate-100 min-h-screen">
+  <div class="max-w-screen-2xl mx-auto p-6 py-8">
+    <!-- Header -->
+    <div class="bg-white border border-slate-200 rounded-lg shadow-sm mb-6 p-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-3xl font-semibold text-slate-900 tracking-tight">JRH Review</h1>
+          <p id="meta" class="text-sm text-slate-500 mt-1"></p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button id="refresh" class="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all duration-150">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg>
+            Refresh
+          </button>
+          <button id="finalize" class="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium bg-slate-900 text-white hover:bg-slate-800 shadow-sm hover:shadow transition-all duration-150">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            Finalize Review
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="finalize-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm px-4">
+      <div class="w-full max-w-md rounded-2xl border border-slate-200 bg-white/95 shadow-2xl p-8 text-center space-y-5">
+        <div class="flex justify-center">
+          <svg class="w-10 h-10 animate-spin text-blue-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke-width="4"></circle>
+            <path class="opacity-75" stroke-width="4" stroke-linecap="round" d="M4 12a8 8 0 018-8"></path>
+          </svg>
+        </div>
+        <div class="space-y-2">
+          <p class="text-xl font-semibold text-slate-900" data-field="finalize-message">Evaluation starting...</p>
+          <p class="text-sm text-slate-600" data-field="finalize-subtext">Evaluation in progress...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cards Grid -->
+    <div id="container" class="grid grid-cols-1 gap-5"></div>
+  </div>
+
+<template id="card">
+  <div class="card bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden" data-collapsed="false">
+    <!-- Card Header -->
+    <div class="bg-slate-50 border-b border-slate-200 px-5 py-4" data-role="toggle">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2 min-w-0">
+          <svg data-field="toggle_icon" class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9l6 6 6-6"></path>
+          </svg>
+          <h2 class="font-semibold text-slate-900 truncate"></h2>
+        </div>
+        <span class="text-xs font-medium text-slate-500 bg-slate-100 px-2.5 py-1 rounded-md"></span>
+      </div>
+    </div>
+
+    <div data-field="card_body">
+    <!-- Card Body -->
+    <div class="p-5 space-y-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">Original Request</label>
+        <div class="text-sm text-slate-600 whitespace-pre-wrap bg-slate-50 rounded-md p-3 border border-slate-200" data-field="original_request"></div>
+      </div>
+      <div data-field="original_response_block">
+        <label class="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">Original Response</label>
+        <div class="text-sm text-slate-600 whitespace-pre-wrap bg-slate-50 rounded-md p-3 border border-slate-200" data-field="original_response"></div>
+      </div>
+      <div class="flex flex-col lg:flex-row gap-4" data-field="transcript-container">
+        <div class="lg:w-1/2 hidden" data-field="original_transcript_wrapper">
+          <label class="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">Original Transcript & Differences</label>
+          <div class="diff-block" data-field="original_transcript"></div>
+          <details class="mt-3 bg-white border border-slate-200 rounded-lg p-3 text-sm text-slate-700" data-field="raw_original_container">
+            <summary class="cursor-pointer text-xs font-semibold text-slate-600 uppercase tracking-wide">Show Raw Original</summary>
+            <div class="mt-2 whitespace-pre-wrap" data-field="raw_original"></div>
+          </details>
+        </div>
+        <div class="lg:w-1/2 hidden" data-field="edited_transcript_wrapper">
+          <label class="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">Edited Transcript</label>
+          <textarea class="w-full border border-slate-300 rounded-md p-3 text-sm text-slate-700 font-mono transition-colors duration-150" data-field="generated_response" style="resize: none; font-size: 0.85rem;"></textarea>
+        </div>
+        <div class="hidden w-full" data-field="standard_output_wrapper">
+          <label class="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">Generated Output</label>
+          <textarea class="w-full border border-slate-300 rounded-md p-3 text-sm text-slate-700 font-mono transition-colors duration-150" data-field="generated_output" style="resize: none; font-size: 0.9rem;"></textarea>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wide">Expected Label</label>
+        <input class="w-full border border-slate-300 rounded-md px-3 py-2 text-sm text-slate-700 transition-colors duration-150" data-field="expected_label" />
+      </div>
+    </div>
+
+    <!-- Card Footer -->
+    <div class="bg-slate-50 border-t border-slate-200 px-5 py-4">
+      <div class="flex items-center gap-2">
+        <button class="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm transition-all duration-150" data-action="accept">
+          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+          Accept
+        </button>
+        <button class="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium bg-rose-600 text-white hover:bg-rose-700 shadow-sm transition-all duration-150" data-action="reject">
+          <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+          Reject
+        </button>
+      </div>
+    </div>
+    </div>
+  </div>
+</template>
+
+  <script src="https://cdn.jsdelivr.net/npm/diff@5.1.0/dist/diff.min.js"></script>
+  <script>
+    const diffEngine = window.Diff || null;
+
+    // There might be a cleaner way to do this, but for now this works for aligning container heights for the original transcript and the edited transcript.
+    function syncTranscriptHeights(cardEl) {
+      const diffContainer = cardEl.querySelector('[data-field=original_transcript]');
+      const editWrapper = cardEl.querySelector('[data-field=edited_transcript_wrapper]');
+      const agentTextarea = cardEl.querySelector('[data-field=generated_response]');
+      const standardOutput = cardEl.querySelector('[data-field=generated_output]');
+
+      if (editWrapper && !editWrapper.classList.contains('hidden')) {
+        if (!diffContainer || !agentTextarea) {
+          return;
+        }
+
+        diffContainer.style.minHeight = '';
+        diffContainer.style.height = '';
+        agentTextarea.style.height = '';
+
+        const baseHeight = 220;
+        const diffHeight = diffContainer.scrollHeight;
+        const textHeight = agentTextarea.scrollHeight;
+        const targetHeight = Math.max(baseHeight, diffHeight, textHeight);
+
+        diffContainer.style.minHeight = `${targetHeight}px`;
+        agentTextarea.style.height = `${targetHeight}px`;
+        return;
+      }
+
+      if (standardOutput && !standardOutput.closest('[data-field=standard_output_wrapper]').classList.contains('hidden')) {
+        standardOutput.style.height = '';
+        const baseHeight = 220;
+        const targetHeight = Math.max(baseHeight, standardOutput.scrollHeight);
+        standardOutput.style.height = `${targetHeight}px`;
+      }
+    }
+
+    function escapeHtml(text) {
+      if (text === undefined || text === null) {
+        return '';
+      }
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function mergeTrivialWhitespaceDiffs(diffs) {
+      if (!Array.isArray(diffs)) {
+        return [];
+      }
+
+      const merged = [];
+      const isTrivialWhitespaceChange = (left, right) => {
+        if (left == null || right == null) {
+          return false;
+        }
+        const normalize = (value) => value.replace(/\s+/g, ' ').trim();
+        return normalize(left) === normalize(right);
+      };
+
+      for (let i = 0; i < diffs.length; i += 1) {
+        const current = diffs[i];
+        const next = diffs[i + 1];
+
+        if (current?.removed && next?.added && isTrivialWhitespaceChange(current.value, next.value)) {
+          merged.push({ value: next.value });
+          i += 1;
+          continue;
+        }
+
+        if (current?.added && next?.removed && isTrivialWhitespaceChange(current.value, next.value)) {
+          merged.push({ value: current.value });
+          i += 1;
+          continue;
+        }
+
+        merged.push(current);
+      }
+
+      return merged;
+    }
+
+    function buildDiffHtml(original, edited) {
+      if (!diffEngine || typeof diffEngine.diffWordsWithSpace !== 'function') {
+        return '';
+      }
+      const baseText = original ?? '';
+      const newText = edited ?? '';
+      const diffs = mergeTrivialWhitespaceDiffs(diffEngine.diffWordsWithSpace(baseText, newText));
+      return diffs
+        .map((part) => {
+          const { added, removed, value } = part;
+          const safe = escapeHtml(value).replace(/\n/g, '<br>');
+          if (added) {
+            return `<span class="diff-add">${safe}</span>`;
+          }
+          if (removed) {
+            return `<span class="diff-remove">${safe}</span>`;
+          }
+          return `<span>${safe}</span>`;
+        })
+        .join('');
+    }
+
+    function updateDiffDisplay(cardEl) {
+      const wrapper = cardEl.querySelector('[data-field=original_transcript_wrapper]');
+      const responseField = cardEl.querySelector('[data-field=generated_response]');
+      const originalRaw = cardEl.dataset.originalTranscript || '';
+
+      if (!wrapper) {
+        return;
+      }
+
+      if (!originalRaw) {
+        wrapper.classList.add('hidden');
+        syncTranscriptHeights(cardEl);
+        return;
+      }
+
+      wrapper.classList.remove('hidden');
+
+      const edited = responseField ? responseField.value : '';
+      const diffHtml = buildDiffHtml(originalRaw, edited);
+      const originalContainer = cardEl.querySelector('[data-field=original_transcript]');
+      if (originalContainer) {
+        originalContainer.innerHTML = diffHtml || '<div class="text-sm text-slate-500">No differences detected.</div>';
+      }
+
+      const rawContainer = cardEl.querySelector('[data-field=raw_original]');
+      if (rawContainer) {
+        rawContainer.innerHTML = originalRaw.replace(/\n/g, '<br>');
+      }
+
+      syncTranscriptHeights(cardEl);
+    }
+
+    async function fetchJSON(path) { const res = await fetch(path); return await res.json(); }
+    async function postJSON(path, body) {
+      await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    }
+
+    const state = {
+      items: new Map(),
+      pendingChanges: new Map(),
+      finalizeNoticeShown: false,
+      expandNextNew: true,
+    };
+
+    function normalizeValue(value) {
+      if (value === undefined || value === null) {
+        return '';
+      }
+      return String(value);
+    }
+
+    function getEditableFields(cardEl) {
+      return {
+        transcriptWrapper: cardEl.querySelector('[data-field=edited_transcript_wrapper]'),
+        transcriptField: cardEl.querySelector('[data-field=generated_response]'),
+        outputWrapper: cardEl.querySelector('[data-field=standard_output_wrapper]'),
+        outputField: cardEl.querySelector('[data-field=generated_output]'),
+        expectedField: cardEl.querySelector('[data-field=expected_label]'),
+      };
+    }
+
+    function readEditedValues(cardEl) {
+      const { transcriptWrapper, transcriptField, outputWrapper, outputField, expectedField } = getEditableFields(cardEl);
+      let edited_response = '';
+      if (outputWrapper && !outputWrapper.classList.contains('hidden') && outputField) {
+        edited_response = outputField.value;
+      } else if (transcriptWrapper && !transcriptWrapper.classList.contains('hidden') && transcriptField) {
+        edited_response = transcriptField.value;
+      } else if (transcriptField) {
+        edited_response = transcriptField.value;
+      }
+      const edited_expected = expectedField ? expectedField.value : '';
+      return { edited_response, edited_expected };
+    }
+
+    function updatePendingState(sampleId, cardEl, baselineOverride) {
+      if (!sampleId || !cardEl) {
+        return;
+      }
+      const baseline = baselineOverride || state.items.get(sampleId) || {};
+      const { edited_response, edited_expected } = readEditedValues(cardEl);
+      const baseResponse = normalizeValue(baseline.generated_response);
+      const baseExpected = normalizeValue(baseline.expected_label);
+      const hasChanges = edited_response !== baseResponse || edited_expected !== baseExpected;
+      if (hasChanges) {
+        state.pendingChanges.set(sampleId, { edited_response, edited_expected });
+        cardEl.dataset.pendingChanges = 'true';
+      } else {
+        state.pendingChanges.delete(sampleId);
+        delete cardEl.dataset.pendingChanges;
+      }
+    }
+
+    function refreshPendingStateFromDOM() {
+      document.querySelectorAll('#container [data-sample-id]').forEach((cardEl) => {
+        const sid = cardEl.dataset.sampleId;
+        if (sid) {
+          updatePendingState(sid, cardEl);
+        }
+      });
+    }
+
+    function removeCard(sampleId) {
+      if (!sampleId) {
+        return;
+      }
+      const cardEl = document.querySelector(`[data-sample-id="${sampleId}"]`);
+      if (cardEl) {
+        cardEl.remove();
+      }
+      state.pendingChanges.delete(sampleId);
+      state.items.delete(sampleId);
+    }
+
+    async function persistPendingChanges() {
+      if (!state.pendingChanges.size) {
+        return;
+      }
+      const entries = Array.from(state.pendingChanges.entries());
+      for (const [sampleId, payload] of entries) {
+        await postJSON('/api/decisions', {
+          sample_id: sampleId,
+          status: 'accepted',
+          edited_response: payload.edited_response,
+          edited_expected: payload.edited_expected,
+        });
+        removeCard(sampleId);
+      }
+    }
+
+    function showFinalizeNotice() {
+      if (state.finalizeNoticeShown) {
+        return;
+      }
+      const overlay = document.getElementById('finalize-overlay');
+      if (!overlay) {
+        state.finalizeNoticeShown = true;
+        return;
+      }
+      state.finalizeNoticeShown = true;
+      const messageEl = overlay.querySelector('[data-field=finalize-message]');
+      const subtextEl = overlay.querySelector('[data-field=finalize-subtext]');
+      if (messageEl) {
+        messageEl.textContent = 'Evaluation starting...';
+      }
+      if (subtextEl) {
+        subtextEl.textContent = 'Evaluation in progress...';
+      }
+      overlay.classList.remove('hidden');
+      setTimeout(() => {
+        if (messageEl) {
+          messageEl.textContent = 'Shutting down browser...';
+        }
+        if (subtextEl) {
+          subtextEl.textContent = 'You can close this tab now.';
+        }
+        setTimeout(() => {
+          overlay.classList.add('hidden');
+        }, 1600);
+      }, 1500);
+    }
+
+    function formatStatus(item) {
+      const sourceType = item.source_type || (item.metadata ? item.metadata.source_type : '');
+      const agentMode = (item.metadata && item.metadata.agent_mode) ? item.metadata.agent_mode : '';
+      const parts = [item.test_name, sourceType, agentMode].filter(Boolean);
+      if (item.decision && item.decision.status) {
+        parts.push(item.decision.status.charAt(0).toUpperCase() + item.decision.status.slice(1));
+      }
+      return parts.join(' · ');
+    }
+
+    function applyDecisionClasses(el, status) {
+      el.classList.remove('ring-2', 'ring-emerald-500', 'ring-blue-500', 'ring-amber-400', 'border-slate-200');
+      if (status === 'accepted') {
+        el.classList.add('ring-2', 'ring-emerald-500');
+        el.classList.remove('border-slate-200');
+      } else if (status === 'edited') {
+        el.classList.add('ring-2', 'ring-blue-500');
+        el.classList.remove('border-slate-200');
+      } else {
+        el.classList.add('border-slate-200');
+      }
+    }
+
+    function highlightNew(el) {
+      el.classList.add('ring-2', 'ring-amber-400', 'card-enter');
+      el.classList.remove('border-slate-200');
+      setTimeout(() => {
+        el.classList.remove('ring-amber-400', 'card-enter');
+        if (!el.classList.contains('ring-emerald-500') && !el.classList.contains('ring-blue-500')) {
+          el.classList.remove('ring-2');
+          el.classList.add('border-slate-200');
+        }
+      }, 2000);
+    }
+
+    function refreshCollapseVisual(el) {
+      const icon = el.querySelector('[data-field=toggle_icon]');
+      const collapsed = el.dataset.collapsed === 'true';
+      if (icon) {
+        icon.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
+      }
+      const body = el.querySelector('[data-field=card_body]');
+      if (body) {
+        body.hidden = collapsed;
+      }
+    }
+
+    function setCardCollapsed(el, collapsed) {
+      if (!el) {
+        return;
+      }
+      if (collapsed) {
+        el.dataset.collapsed = 'true';
+      } else {
+        delete el.dataset.collapsed;
+      }
+      refreshCollapseVisual(el);
+    }
+
+    function toggleCardCollapsed(el) {
+      const collapsed = el.dataset.collapsed === 'true';
+      setCardCollapsed(el, !collapsed);
+    }
+
+    function applyItemData(el, item) {
+      el.dataset.sampleId = item.sample_id;
+      el.querySelector('h2').textContent = item.sample_id;
+      const span = el.querySelector('span');
+      span.textContent = formatStatus(item);
+      const metadata = item.metadata || {};
+      const originalTranscript = metadata.original_transcript || metadata.originalTranscript || '';
+      const originalRequest = item.original_request || '';
+      const originalResponse = item.original_response || '';
+
+      el.querySelector('[data-field=original_request]').textContent = originalRequest;
+      el.querySelector('[data-field=original_response]').textContent = originalResponse;
+      const responseField = el.querySelector('[data-field=generated_response]');
+      const expectedField = el.querySelector('[data-field=expected_label]');
+      if (responseField && document.activeElement !== responseField) {
+        responseField.value = normalizeValue(item.generated_response ?? '');
+      }
+      if (expectedField && document.activeElement !== expectedField) {
+        expectedField.value = normalizeValue(item.expected_label ?? '');
+      }
+      if (item.decision && item.decision.status) {
+        applyDecisionClasses(el, item.decision.status);
+      }
+
+      const originalResponseBlock = el.querySelector('[data-field=original_response_block]');
+      const agentViewWrapper = el.querySelector('[data-field=original_transcript_wrapper]');
+      const agentEditWrapper = el.querySelector('[data-field=edited_transcript_wrapper]');
+      const standardOutputWrapper = el.querySelector('[data-field=standard_output_wrapper]');
+
+      if (originalTranscript) {
+        el.dataset.originalTranscript = originalTranscript;
+        if (originalResponseBlock) {
+          originalResponseBlock.classList.add('hidden');
+        }
+        if (agentViewWrapper) {
+          agentViewWrapper.classList.remove('hidden');
+        }
+        if (agentEditWrapper) {
+          agentEditWrapper.classList.remove('hidden');
+        }
+        if (standardOutputWrapper) {
+          standardOutputWrapper.classList.add('hidden');
+        }
+      } else {
+        delete el.dataset.originalTranscript;
+
+        const reqTrim = originalRequest.trim();
+        const respTrim = originalResponse.trim();
+        if (originalResponseBlock) {
+          originalResponseBlock.classList.add('hidden');
+        }
+
+        if (agentViewWrapper) {
+          agentViewWrapper.classList.add('hidden');
+        }
+        if (agentEditWrapper) {
+          agentEditWrapper.classList.add('hidden');
+        }
+        if (standardOutputWrapper) {
+          standardOutputWrapper.classList.remove('hidden');
+          const outputField = standardOutputWrapper.querySelector('[data-field=generated_output]');
+          if (outputField) {
+            const generated = item.generated_response ?? respTrim ?? '';
+            outputField.value = normalizeValue(generated); // plain string for easy editing
+          }
+        }
+      }
+      updateDiffDisplay(el);
+      syncTranscriptHeights(el);
+      updatePendingState(item.sample_id, el, item);
+      refreshCollapseVisual(el);
+    }
+
+    function wireActions(el, item) {
+      const sampleId = item.sample_id;
+      el.dataset.sampleId = sampleId;
+      el.querySelector('[data-action=accept]').addEventListener('click', async () => {
+        const { edited_response, edited_expected } = readEditedValues(el);
+        await postJSON('/api/decisions', { sample_id: sampleId, status: 'accepted', edited_response, edited_expected });
+        removeCard(sampleId);
+      });
+      el.querySelector('[data-action=reject]').addEventListener('click', async () => {
+        await postJSON('/api/decisions', { sample_id: sampleId, status: 'rejected' });
+        removeCard(sampleId);
+      });
+      const responseField = el.querySelector('[data-field=generated_response]');
+      if (responseField && !responseField.dataset.diffWatcher) {
+        responseField.addEventListener('input', () => {
+          updateDiffDisplay(el);
+          syncTranscriptHeights(el);
+          updatePendingState(sampleId, el);
+        });
+        responseField.dataset.diffWatcher = 'true';
+      }
+      const outputField = el.querySelector('[data-field=generated_output]');
+      if (outputField && !outputField.dataset.changeWatcher) {
+        outputField.addEventListener('input', () => {
+          updatePendingState(sampleId, el);
+        });
+        outputField.dataset.changeWatcher = 'true';
+      }
+      const expectedField = el.querySelector('[data-field=expected_label]');
+      if (expectedField && !expectedField.dataset.changeWatcher) {
+        expectedField.addEventListener('input', () => {
+          updatePendingState(sampleId, el);
+        });
+        expectedField.dataset.changeWatcher = 'true';
+      }
+      const toggleRegion = el.querySelector('[data-role=toggle]');
+      if (toggleRegion && !toggleRegion.dataset.toggleBound) {
+        toggleRegion.addEventListener('click', (event) => {
+          if (event.target.closest('button')) {
+            return;
+          }
+          toggleCardCollapsed(el);
+        });
+        toggleRegion.dataset.toggleBound = 'true';
+      }
+    }
+
+    function upsertItem(item, { highlight = false } = {}) {
+      const root = document.getElementById('container');
+      const decisionStatus = item.decision && item.decision.status;
+      if (decisionStatus === 'accepted' || decisionStatus === 'rejected') {
+        removeCard(item.sample_id);
+        return;
+      }
+      let el = root.querySelector(`[data-sample-id="${item.sample_id}"]`);
+      if (!el) {
+        const tpl = document.getElementById('card');
+        el = tpl.content.cloneNode(true).firstElementChild;
+        wireActions(el, item);
+        root.appendChild(el);
+        const shouldExpandNew = highlight && state.expandNextNew;
+        if (highlight && state.expandNextNew) {
+          state.expandNextNew = false;
+        }
+        setCardCollapsed(el, highlight ? !shouldExpandNew : false);
+        if (highlight) {
+          highlightNew(el);
+        }
+      } else {
+        refreshCollapseVisual(el);
+      }
+      applyItemData(el, item);
+      state.items.set(item.sample_id, item);
+    }
+
+    async function load() {
+      const meta = await fetchJSON('/api/batch');
+      document.getElementById('meta').textContent = `Batch: ${meta.batch_id}`;
+      const items = await fetchJSON('/api/items');
+      const root = document.getElementById('container');
+      root.innerHTML = '';
+      state.items.clear();
+      state.pendingChanges.clear();
+      state.expandNextNew = true;
+      for (const item of items) {
+        upsertItem(item);
+      }
+    }
+
+    function connectWebsocket() {
+      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${protocol}://${window.location.host}/ws/items`);
+
+      ws.addEventListener('message', (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          if (message.type === 'init') {
+            document.getElementById('meta').textContent = `Batch: ${message.payload.batch_id}`;
+            for (const item of message.payload.items || []) {
+              upsertItem(item);
+            }
+            if (message.payload.finalized) {
+              const finalizeBtn = document.getElementById('finalize');
+              if (finalizeBtn) {
+                finalizeBtn.disabled = true;
+              }
+              showFinalizeNotice();
+            }
+          } else if (message.type === 'item_created') {
+            upsertItem(message.payload, { highlight: true });
+          } else if (message.type === 'item_updated' || message.type === 'decision_updated') {
+            upsertItem(message.payload);
+          } else if (message.type === 'finalized') {
+            const finalizeBtn = document.getElementById('finalize');
+            if (finalizeBtn) {
+              finalizeBtn.disabled = true;
+            }
+            showFinalizeNotice();
+          }
+        } catch (err) {
+          console.error('Failed to handle websocket message', err);
+        }
+      });
+
+      ws.addEventListener('close', () => {
+        setTimeout(connectWebsocket, 1000);
+      });
+
+      ws.addEventListener('error', () => {
+        ws.close();
+      });
+    }
+
+    document.getElementById('refresh').addEventListener('click', load);
+    document.getElementById('finalize').addEventListener('click', async (event) => {
+      const btn = event.currentTarget;
+      if (btn.disabled) {
+        return;
+      }
+      btn.disabled = true;
+      let finalized = false;
+      try {
+        refreshPendingStateFromDOM();
+        await persistPendingChanges();
+        await fetch('/api/finalize');
+        showFinalizeNotice();
+        finalized = true;
+      } catch (err) {
+        console.error('Failed to finalize review', err);
+        alert('Failed to finalize review. Please try again.');
+      } finally {
+        if (!finalized) {
+          btn.disabled = false;
+        }
+      }
+    });
+    load();
+    connectWebsocket();
+  </script>
+</body>
+</html>

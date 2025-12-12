@@ -1,0 +1,77 @@
+---
+title: "Reliability Tests"
+---
+
+This page describes the reliability tests available in the Judge Reliability Harness (JRH). Each test generates synthetic data designed to probe specific weaknesses in automated judges.
+
+## Discriminative Tests
+
+These tests evaluate whether a judge can distinguish between correct and incorrect responses.
+
+- **label_flip**
+  - Rewrites a response to logically contradict the original while preserving topic, tone, and structure.
+  - Useful for testing whether a judge can detect factual inversions (e.g., a harmful response becoming benign, or vice versa).
+  - Generated via the `basic_perturbation` template with instructions to invert factual claims without adding disclaimers.
+
+## Consistency Tests
+
+These tests evaluate whether a judge produces stable scores when presented with semantically equivalent inputs.
+
+- **format_invariance_1**
+  - Adds extra blank lines between sentences or paragraphs.
+  - Tests whether the judge is sensitive to vertical whitespace changes that don't alter meaning.
+
+- **format_invariance_2**
+  - Scatters additional spaces within sentences (spacing-heavy text).
+  - Tests whether horizontal spacing artifacts affect scoring.
+
+- **format_invariance_3**
+  - Adds leading tabs or indentation to lines.
+  - Tests whether layout/indentation changes bias the judge.
+
+- **semantic_paraphrase**
+  - Rephrases a response using synonyms, reordering, or equivalent expressions while preserving meaning.
+  - Tests whether the judge scores semantically identical content consistently regardless of wording.
+
+- **answer_ambiguity**
+  - Presents the same request–response pair to the judge multiple times.
+  - Tests within-sample consistency: identical inputs should produce identical scores.
+
+- **verbosity_bias_long**
+  - Expands a response with more detailed explanation while maintaining all factual content.
+  - Tests whether the judge is biased toward longer, more elaborate responses.
+
+- **verbosity_bias_short**
+  - Condenses a response into a shorter, clearer form while preserving all key information.
+  - Tests whether the judge penalizes concise responses.
+
+## Ordinal Generation
+
+- **synthetic_ordinal**
+  - Generates new responses targeting specific rubric score levels (e.g., 0, 1, 2, 3).
+  - Uses few-shot examples from the seed dataset to guide generation toward a target bucket.
+  - A validation judge confirms whether the generated response matches the intended score.
+  - Useful for testing whether a judge can reliably distinguish between adjacent score levels on an ordinal rubric.
+
+## Stability Tests
+
+- **stochastic_stability**
+  - Duplicates seed data rows across multiple random seeds and repetitions.
+  - Tests whether the judge produces consistent scores when the same input is evaluated multiple times with different sampling conditions.
+  - Configured via `number_of_seeds` and `repetitions` to control the number of variants.
+
+## Agentic Tests
+
+These tests operate on agent transcripts (multi-turn conversations) rather than single responses. See the [Agentic Mode Guide](agentic_guide.qmd) for detailed configuration.
+
+- **agent_perturbation**
+  - Edits an agent transcript to induce rubric violations.
+  - A planner identifies which assistant turns to modify; an editor rewrites those turns; an optional verifier confirms the failure.
+  - Tests whether a judge can detect subtle failures introduced into otherwise-passing transcripts.
+  - Supports both binary (pass/fail) and ordinal (score-level targeting) modes depending on the autograder template.
+
+- **agent_positives**
+  - Preserves or minimally edits transcripts that already satisfy the rubric.
+  - Useful for measuring false-positive rates: these transcripts should pass, so any judge failures indicate over-sensitivity.
+  - Reuses the same pipeline as `agent_perturbation` but with `objective: "pass"`.
+

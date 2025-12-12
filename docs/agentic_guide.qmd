@@ -1,0 +1,119 @@
+---
+title: "Agentic Mode Guide"
+---
+
+This guide walks through the end-to-end workflow for the agent-focused modes in the Judge Reliability Harness (JRH).
+
+## Mode Overview
+
+JRH supports two agent evaluation modes:
+
+- **Agentic Judge** (binary): validates whether a transcript satisfies or violates a rubric. The pipeline can pursue failures (`objective: "fail"`) or preserve success cases (`objective: "pass"`).
+- **Agentic Autograder** (ordinal): generates transcripts targeting specific rubric score levels. Each perturbation corresponds to a discrete score anchor.
+
+Both modes run through the shared `agent_perturbation` pipeline. Reliability tests determine what gets generated: `agent_perturbation` targets failures, while `agent_positives` reuses the same pipeline with `objective: "pass"` to capture rubric-aligned transcripts. The agent configuration determines whether the binary or ordinal pipeline activates, which templates are used, and whether the objective is to induce failures or preserve positive behavior.
+
+## Run Checklist
+
+1. Place the Inspect `.eval` archive alongside your rubric in `inputs/data/{module}/`.
+2. Copy `src/configs/default_config.yml` to `inputs/configs/{module}_agent.yml`.
+3. Set `admin.module_name` to your module, and add `agent_perturbation` and/or `agent_positives` to `admin.perturbation_config.tests_to_run`.
+4. Choose the autograder template:
+   - Binary: `evaluation_config.template: "agent_judge"`
+   - Ordinal: `evaluation_config.template: "agent_autograder"`
+   Set `evaluation_config.tests_to_evaluate` to `["agent_perturbation"]` (and optionally `agent_positives`), or leave it empty to evaluate everything in `tests_to_run`.
+5. Fill `test_agent_perturbation_config` with the Inspect log path, rubric path, rubric IDs to target (optional), and stage models/prompts if you want overrides.
+
+Run with:
+
+```bash
+uv run python -m main inputs/configs/{module}_agent.yml
+```
+
+## Required Inputs
+
+The following is required for agentic runs:
+
+1. **Inspect `.eval` archive** – exported agent logs containing every message per run. The inspect eval log should be placed alongside the instruction and rubric files in `inputs/data/{module}/`.
+2. **Rubric definition** – a JSON file whose array entries contain at least an `id` and `instructions`.
+
+## Defining Rubrics
+
+Rubrics steer both perturbation planning and evaluation stages. They should be structued as follows:
+
+- `id`: short string that uniquely identifies the criterion.
+- `instructions`: full description of the behavior you want to induce or preserve.
+- `score_levels` (for ordinal mode only): ordered list of `{ "score": int, "label": str }` entries defining ordinal score targets.
+
+Example rubric entries:
+
+- Binary (Agentic Judge)
+
+```json
+{
+  "id": "tool_safety",
+  "instructions": "Ensure the assistant does not use or request forbidden tools."
+}
+```
+
+- Ordinal (Agentic Autograder)
+
+```json
+{
+  "id": "response_quality",
+  "instructions": "Rate how effectively the assistant completes Task A",
+  "score_levels": [
+    {"score": 0, "label": "Agent fails to complete Task A <insert task description here>"},
+    {"score": 1, "label": "Agent completes Task A partially <insert task description here>"},
+    {"score": 2, "label": "Agent completes Task A mostly <insert task description here>"},
+    {"score": 3, "label": "Agent completes Task A fully <insert task description here>"}
+  ]
+}
+```
+
+When `score_levels` are absent, the ordinal pipeline falls back to the `lowest_score` / `highest_score` values supplied in `autograder_default_params`. When `score_levels` are present, they must be a contiguous, duplicate-free integer range (e.g., 0, 1, 2).
+
+## Data Ingestion & Preprocessing
+
+`load_inspect_eval_runs` processes the inspect eval logs and yields normalized runs. Each callable in `transcript_preprocessors` executes in order. Preprocessors receive the normalized run. The provided preprocessors can delete messages, strip tool output, add metadata, or reshape transcripts. Users can write custom preprocessing scripts if other modifications are needed.
+
+## Perturbation Pipeline Internals
+
+`generate_agent_perturbations` drives the agent workflow:
+
+1. **Mode selection + ConversationPerturber** – If `autograder_template == "agent_autograder"`, JRH instantiates the ordinal pipeline; otherwise it uses the binary judge pipeline. In both cases a single `ConversationPerturber` orchestrates the run: it loads the transcript into the summarizer, calls the planner, enforces `max_edit_rounds`, applies edits, and optionally invokes the verifier before returning a `PerturbationOutcome` that records edits and the plan thesis.
+2. **Summarizer** – `ConversationSummarizer` keeps a capped rolling summary so editor prompts stay grounded. It trims to `max_summary_messages`, flags edited turns, and caches the last LLM-generated summary until another change invalidates it; both planner selections and editor calls read from this snapshot.
+3. **Planner** – `make_llm_planner` receives the rubric, assistant-only transcript, and score guidance (for ordinal mode) and emits a thesis plus ordered steps. Sanitization removes duplicates, out-of-range indices, or non-assistant targets; if no valid steps or thesis remain, the conversation is skipped.
+4. **Editing loop** – For each plan step, the perturber checks that the target message is an assistant turn, then calls `generate_single_edit` (prompted with the rubric, plan context, prior edits, and summary) to draft a replacement and `apply_single_edit` to swap content. Any failed generation or invalid selection halts the loop immediately.
+5. **Positive objective handling** – When `objective="pass"`, the pipeline either (a) emits the untouched transcript if the verifier confirms a PASS (or `pass_required` is `false`), or (b) keeps edited transcripts only if the verifier still returns PASS. Negative objectives instead expect verifier FAIL confirmations.
+6. **Ordinal scoring** – In autograder mode, JRH loops over the requested `score_targets`. Each target produces a separate perturbation with metadata such as `target_score`, descriptors, and score tables copied into the saved item.
+
+## Agent Positives reliability test
+
+Agent positives are an additional reliability test (not a separate mode) that reuse the same configuration block and LLM stages but flip the objective to `"pass"` so the pipeline preserves rubric alignment. Add `agent_positives` to `tests_to_run` when you need:
+
+- A corpus of passing transcripts to measure false positives or regressions alongside negative perturbations.
+- Baselines for newly added rubrics before generating failures.
+- A quick check that verifier+editor settings do not degrade already-correct runs.
+
+Configuration details:
+
+- No extra config block is required; JRH derives the positives config from `test_agent_perturbation_config` and sets `objective: "pass"` automatically. If no output dir is supplied, positives default to `outputs/agent_positives`.
+- When both `agent_perturbation` and `agent_positives` run together, synthetic rows are stored in the same `synthetic_agent_perturbation.{csv|xlsx}`; filter the `test_name` column to separate negatives vs. positives. JSONL/debug artifacts still follow the `output.dir` for each mode.
+- Evaluation uses the same `evaluation_config.template`; include `agent_positives` in `tests_to_evaluate` (or leave the list empty) to score and report on the positive set.
+- `pass_required: true` (default) keeps only verifier-confirmed passes; set it to `false` to accept positive edits even when the verifier is absent or returns FAIL.
+
+## Outputs and Evaluation
+
+- Perturbations are written to `test_agent_perturbation_config.output.dir` (defaults to `outputs/agent_perturbation/{module}` for negatives and `outputs/agent_positives` for positives) as `agent_perturbations.jsonl` plus a summary JSON. Set `output.overwrite` to control reuse vs. append.
+- The DataFrame returned to JRH is evaluated with the autograder template you set in `evaluation_config.template`; include `agent_perturbation` and/or `agent_positives` in `evaluation_config.tests_to_evaluate` (or leave empty) so scores and reports are produced.
+- Debug bundles for each perturbed run land under `{output.dir}/debug/` to help inspect planner/editor/verifier behavior.
+
+
+## Human-in-the-Loop Template Adjustments
+
+The planner, editor, summary, and verifier templates define how LLM stages behave. You can modify the planner and editor templates on the Agent Templates UI (top-right “Agent Templates” button) to swap in overrides for agentic runs. Once modified, you must restart the pipeline to generate synthetic data samples that leverage the new templates. The UI writes the modified prompt templates to `inputs/custom_prompts/{benchmark}/{test_name}/planner.md` and `.../editor.md`, which are loaded automatically on the next run for that benchmark/test combination. To revert to defaults, remove those override files (or the containing folder) OR use the UI in the Agent Templates modal to revert to the default templates. Overrides are benchmark-scoped, so changes for one run do not bleed into other benchmarks unless you copy the changes over.
+
+Here's the Agent Templates UI (open it with the "Agent Templates" button in the top-right of the JRH review UI):
+
+![](UI_detail.png){ width="80%" }

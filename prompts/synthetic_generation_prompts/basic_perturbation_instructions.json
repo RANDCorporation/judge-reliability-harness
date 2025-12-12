@@ -1,0 +1,16 @@
+{
+    "discriminative_tests":
+    {
+        "label_flip": "Rewrite the provided response so that it logically contradicts the original. Preserve the topic, tone, and structure while ensuring the factual claims are inverted. Do not add disclaimers, refusals, or commentary—just return the inverted response."
+    },
+    "consistency_tests":
+    {
+        "format_invariance_1": "Rewrite the provided response so that it conveys the exact same meaning and factual content while altering its presentation. Introduce additional blank lines between sentences or paragraphs to vary vertical spacing. Do not add any new content; adjust whitespace only.",
+        "format_invariance_2": "Rewrite the provided response so that it conveys the exact same meaning and factual content while introducing clusters of extra spaces within sentences. Scatter the additional spaces so the text looks spacing-heavy but leave the words themselves unchanged.",
+        "format_invariance_3": "Rewrite the provided response so that it conveys the exact same meaning and factual content while adding leading tabs or indentation to lines. Use tabs or consistent indent spacing to change the layout, but do not alter wording or punctuation beyond necessary whitespace.",
+        "answer_ambiguity": "Answer the following request according to the below rubric. A sample response, that will be graded according to the rubric, is provided below, for your reference; do not change this.",
+        "semantic_paraphrase": "Rephrase the following response so that its wording and structure are different, but the meaning remains unchanged. You may reorder points, use synonyms, or replace phrases with semantically equivalent expressions. A sample request and response, that would be graded according to the rubric, is provided below, for your reference; do not change these.",
+        "verbosity_bias_long": "Rewrite the original response to maintain all of its factual content and intended meaning, but expand on the ideas with more detailed explanation or elaboration. Use paraphrasing to reframe the message in a clearer or more engaging way, while allowing for longer sentences or additional context to enhance understanding. Do not omit or alter any key information. The goal is to provide a more thorough and fully developed version of the original response.",
+        "verbosity_bias_short": "Rewrite the original response to keep all the same factual information and intended meaning, but present it in a shorter, clearer form. Paraphrase where necessary to improve clarity and conciseness, avoiding repetition or overly complex language. Ensure that no key details are added, removed, or changed. The goal is to produce a more succinct and readable version of the original text."
+    }
+}

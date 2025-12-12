@@ -1,0 +1,54 @@
+---
+title: "Quick Start"
+---
+
+![](UI_header.png){ width="100%" }
+
+# Prepare Your Inputs
+
+- Place your dataset, rubric, and instruction files under `inputs/data/{module_name}/`.
+  - Default binary example: `inputs/data/harmbench_binary/harmbench.csv`, `harmbench_binary_instruction.txt`, `harmbench_binary_rubric.txt`.
+  - Ordinal example: `inputs/data/persuade/persuade_corpus_2.0_test_sample.csv`, `persuade_instruction.txt`, `persuade_rubric.txt`.
+- Confirm the config maps your dataset columns to JRH's `request` / `response` / `expected` schema via `admin.perturbation_config.preprocess_columns_map`.
+- Set API keys in `.env` (for example `OPENAI_API_KEY`) and optionally enable `admin.test_debug_mode: True` for dry runs that avoid LLM calls.
+
+# Run Common Workflows
+
+Activate the uv environment you created during installation or prefix commands with `uv run` to reuse it automatically.
+
+- Default Harmbench label-flip (with the review UI on):
+  ```bash
+  uv run python -m main
+  ```
+- Default Harmbench without the review UI (useful for headless runs):
+  ```bash
+  uv run python -m main inputs/configs/config_binary_harmbench.yml
+  ```
+  and set `admin.perturbation_config.use_HITL_process: False`.
+- Ordinal essay scoring (Persuade):
+  ```bash
+  uv run python -m main inputs/configs/config_persuade.yml
+  ```
+- Build your own run: copy `src/configs/default_config.yml` into `inputs/configs/your_config.yml`, adjust paths/tests, then execute:
+  ```bash
+  uv run python -m main inputs/configs/your_config.yml
+  ```
+- Agentic mode: add `"agent_perturbation"` to `tests_to_run`, fill `test_agent_perturbation_config` with your Inspect `.eval` archive and rubric, pick the `evaluation_config.template` (`agent_judge` or `agent_autograder`), and launch with the same command pattern. See the Agentic Mode Guide for details.
+
+Use `uv run python -m main --help` to view CLI arguments.
+
+# Human Review UI (optional)
+
+If `admin.perturbation_config.use_HITL_process` is `true`, JRH starts a lightweight review UI at `http://127.0.0.1:8765` while perturbations stream in. Accept, reject, or edit rows in the browser, then click **Finalize** (or press Enter in the terminal) to continue. Set the flag to `false` to skip the UI and accept all generated items.
+
+# Inspect Outputs
+
+Artifacts live under `outputs/{module_name}_{timestamp}/`:
+
+- `{config_name}.yml`: merged configuration snapshot saved with the filename you passed to `main`.
+- `synthetic_{test}.{csv|xlsx}`: generated perturbations (after any human edits) in the configured `output_file_format`.
+- `{test}_results_{model}.{csv|xlsx}`: autograder scores per perturbation (written when `evaluation_config.overwrite_results` is `true`; otherwise existing results are reused).
+- `{model}_report.json`: metrics summary; includes cost curves image `cost_curve_heatmap.png` if enabled.
+- `review/`: review UI decisions and logs when HITL is enabled.
+
+Agentic runs also emit `agent_perturbations.jsonl` plus per-run debug bundles under `test_agent_perturbation_config.output.dir` (defaults to `outputs/agent_perturbation/...`).

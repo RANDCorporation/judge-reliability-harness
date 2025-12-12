@@ -1,0 +1,101 @@
+# src/config/default_config.yml
+
+admin:
+  module_name: "harmbench_binary"
+  time_stamp: null # set as 'null' (unquoted) by default
+  test_debug_mode: False
+  output_file_format: "csv"
+
+  dataset_config:
+    dataset_name: "harmbench.csv"
+    default_params_path:
+      instruction: "harmbench_binary_instruction.txt"
+      rubric: "harmbench_binary_rubric.txt"
+
+    use_original_data_as_expected: False
+
+    default_params:
+      min_score: "1"
+      max_score: "6"
+
+  perturbation_config:
+    use_HITL_process: True
+    tests_to_run:
+      - "label_flip"
+      # - "format_invariance_1"
+      # - "format_invariance_2"
+      # - "format_invariance_3"
+      # - "semantic_paraphrase"
+      # - "answer_ambiguity"
+      # - "verbosity_bias"
+      # - "stochastic_stability"
+      # - "synthetic_ordinal"
+
+    preprocess_columns_map:
+      request: "test_case"
+      response: "generation"
+      expected: "human_consensus"
+
+  evaluation_config:
+    template: "single_judge"
+    autograder_model_name: "openai/gpt-4o-mini"
+    overwrite_results: False
+    max_workers: 10
+
+    tests_to_evaluate:
+      - "label_flip"
+
+    metric: "accuracy_score" # must be a sklearn metric
+    bootstrap_size: 0.1
+    bootstrap_repetitions: 10
+    get_cost_curves: False
+
+test_stochastic_stability_config:
+  sample_num_from_orig: 10
+  number_of_seeds: 1
+  repetitions: 1
+  seed: 87
+
+synthetic_data_params:
+  generation_model_name: "openai/gpt-4o-mini"
+  validation_model_name: "openai/gpt-4o-mini"
+  max_tokens_generation: 1200
+  max_tokens_validation: 1200
+
+  max_workers: 10
+  use_similarity_filter: True
+  sample_num_from_orig: 10
+  target_num_per_bucket: 5
+  similarity_threshold: 0.9
+  rescore_sample_size: 2
+  initial_temp: 1.0
+  num_seed_examples_per_generation: 1
+  temp_increment: 0.1
+  max_temp_cap: 1.3
+  max_consecutive_failures: 3
+  seed: 87
+
+test_agent_perturbation_config:
+  input_log_path: "./inputs/data/stratus/stratus.eval"
+  rubric_path: "./inputs/data/stratus/stratus_esm3.json"
+  target_rubric_ids: ["constant_residues"]
+  max_summary_messages: 60
+  max_edit_rounds: 20
+  trace_messages: false
+  transcript_preprocessor:
+  # planner:
+  #   model: "openai/gpt-5"
+  #   temperature: 1.0
+  # editor:
+  #   model: "openai/gpt-4o-mini"
+  #   temperature: 0.0
+  # summary:
+  #   model: "openai/gpt-4o-mini"
+  #   temperature: 0.0
+  # verifier:
+  #   model: "openai/gpt-4o-mini"
+  #   temperature: 0.0
+  output:
+    dir: "./outputs/agent_perturbation/harmbench_binary"
+    write_jsonl: true
+    overwrite: true
