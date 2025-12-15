@@ -13,7 +13,7 @@ We introduce the Judge Reliability Harness (JRH), an open source library that ge
 
 Clone project with:
 
-- `git clone https://github.com/tasp-evals/judge-reliability-harness.git`
+- `git clone https://github.com/RANDCorporation/judge-reliability-harness.git`
 
 Move into the project:
 
