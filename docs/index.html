@@ -134,9 +134,11 @@ ul.task-list li input[type="checkbox"] {
    
   <ul>
   <li><a href="#project-overview" id="toc-project-overview" class="nav-link active" data-scroll-target="#project-overview">Project Overview</a></li>
+  <li><a href="#why-jrh" id="toc-why-jrh" class="nav-link" data-scroll-target="#why-jrh">Why JRH?</a></li>
   <li><a href="#core-workflow" id="toc-core-workflow" class="nav-link" data-scroll-target="#core-workflow">Core Workflow</a></li>
   <li><a href="#available-modes" id="toc-available-modes" class="nav-link" data-scroll-target="#available-modes">Available Modes</a></li>
   <li><a href="#documentation-map" id="toc-documentation-map" class="nav-link" data-scroll-target="#documentation-map">Documentation Map</a></li>
+  <li><a href="#acknowledgments" id="toc-acknowledgments" class="nav-link" data-scroll-target="#acknowledgments">Acknowledgments</a></li>
   </ul>
 </nav>
     </div>
@@ -165,6 +167,11 @@ ul.task-list li input[type="checkbox"] {
 <section id="project-overview" class="level1">
 <h1>Project Overview</h1>
 <p>The Judge Reliability Harness (JRH) orchestrates end-to-end evaluations of automated judges. It standardizes how datasets are prepared, perturbations are generated, and model outputs are rescored so teams can compare judge reliability across tasks. The harness coordinates data ingestion, perturbation pipelines, automated grading, and reporting into reproducible runs.</p>
+</section>
+<section id="why-jrh" class="level1">
+<h1>Why JRH?</h1>
+<p>LLMs are increasingly used as judges or to score, rank, or classify AI outputs in AI evaluations. Human evaluation yields high quality judgments but is expensive and difficult to scale, which has motivated the widespread use of LLMs as judges in place of human annotators However, the reliability of judge system comfiguration, including the LLM judge model, rubric, and prompt templates, are rarely evaluated and measured in a systematic manner or reported alongside benchmark evaluation results. Point estimates of agreement with human raters on small validation sets provide limited assurance about how a judge will respond to realistic variations in inputs, such as changes in formatting, paraphrasing, verbosity, or sampling parameters. This gap between the central role of LLM judges and the limited tools available to characterize their reliability makes it difficult for practitioners and decision makers to understand how much confidence to place in AI evaluation results.</p>
+<p>We introduce the Judge Reliability Harness (JRH), an open source library that generates validation suites for any LLM judge on both agentic and free-response benchmarks. JRH generates reliability tests that measure grading accuracy via label flipped responses, invariance to formatting and paraphrasing, susceptibility to verbosity bias, stochastic stability under repeated sampling, and calibration across an ordinal grading scale. JRH features a human-in-the-loop review process for generated reliability tests through a user interface that gives full control to accept, reject, or edit the tests. Across a range of candidate judges, it aggregates pass rates, confidence intervals, and cost curves into standardized reports. By making reliability testing configurable, reproducible, and inexpensive, JRH aims to support a more transparent and trustworthy use of LLM judges in both research and deployment contexts.</p>
 </section>
 <section id="core-workflow" class="level1">
 <h1>Core Workflow</h1>
@@ -206,6 +213,10 @@ ul.task-list li input[type="checkbox"] {
 <li><code>agentic_guide.qmd</code> explains the Inspect-log-driven agent perturbation workflow.</li>
 <li><code>developer_guide.qmd</code> outlines the project layout for contributors.</li>
 </ul>
+</section>
+<section id="acknowledgments" class="level1">
+<h1>Acknowledgments</h1>
+<p>The material developed during this research was sponsored by the Government of the United States under Contract Number FA8702-15-D-0002. The view, opinions, and/or filings contained in this material are those of the author(s) and should not be construed as an official position, policy, or decision of the Government of the United States or Carnegie Mellon University or the Software Engineering Institute unless designated by other documentation.</p>
 
 
 </section>
