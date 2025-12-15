@@ -125,6 +125,15 @@ class LLMClient:
 			"max_retries": self.config.retries,
 		}
 
+		# Handle Bedrock models - extract modelId from model name
+		# For Bedrock, litellm/instructor requires modelId parameter (not "model")
+		if self.config.model and self.config.model.startswith("bedrock/"):
+			# For Bedrock, model name format is "bedrock/model-id"
+			# Extract the model-id part and pass it as modelId parameter
+			model_id = self.config.model.split("/", 1)[1]
+			args["modelId"] = model_id
+			# Note: Do NOT pass "model" parameter for Bedrock - only modelId is valid
+
 		sig = inspect.signature(self.client.chat.completions.create)
 		if "temperature" in sig.parameters:
 			temperature = temperature if temperature is not None else self.config.temperature

@@ -1,6 +1,7 @@
 from .configs import (
 	AdminConfig,
 	EvaluationConfig,
+	JudgeConfig,
 	DatasetConfig,
 	PerturbationConfig,
 	TestStochasticStabilityConfig,
@@ -29,6 +30,7 @@ from .agentic_configs import (
 __all__ = [
 	"AdminConfig",
 	"EvaluationConfig",
+	"JudgeConfig",
 	"DatasetConfig",
 	"PerturbationConfig",
 	"TestStochasticStabilityConfig",

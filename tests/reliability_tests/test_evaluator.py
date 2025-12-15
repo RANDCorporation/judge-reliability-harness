@@ -31,6 +31,7 @@ def dummy_config(tmp_path):
 	mock_config.output_dir = tmp_path
 	mock_config.overwrite_results = True
 	mock_config.output_file_format = "xlsx"
+	mock_config.is_multi_judge_mode = MagicMock(return_value=False)
 	return mock_config
 
 
@@ -72,6 +73,7 @@ def test_grade_synthetic_data_creates_file(dummy_test_df, dummy_config, dummy_ju
 
 	with patch.object(Evaluator, "_grade_single", return_value=dummy_judge_df) as mock_grade:
 		result = evaluator.grade_synthetic_data("test_run", dummy_test_df)
+		result = result.get("single_judge") if isinstance(result, dict) else result
 
 		# Columns are renamed in the output
 		expected_df = dummy_judge_df.rename(
@@ -106,6 +108,8 @@ def test_grade_synthetic_data_uses_cached(dummy_test_df, dummy_config, dummy_jud
 
 	with patch.object(Evaluator, "_grade_single") as mock_grade:
 		result = evaluator.grade_synthetic_data("test_run", dummy_test_df)
+		## since we are now returning {str: pd.DataFrame}, we need to get the single_judge dataframe
+		result = result.get("single_judge") if isinstance(result, dict) else result
 
 		# Should load cached data, not re-run grading
 		assert isinstance(result, pd.DataFrame)

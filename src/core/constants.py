@@ -12,6 +12,7 @@ console = Console()
 VALID_TEMPLATES = [
 	"single_autograder",
 	"single_judge",
+	"single_judge_str",
 	"multiclass_judge",
 	"synthetic/basic_perturbation",
 	"synthetic/standard_generation",
@@ -30,6 +31,7 @@ def get_response_schema(template: str) -> Type[BaseModel]:
 		"agent_autograder": BasicLLMResponseInt,
 		"agent_judge": BasicLLMResponseInt,
 		"multiclass_judge": BasicLLMResponseStr,
+		"single_judge_str": BasicLLMResponseStr,
 	}
 	if template in response_schema_map:
 		return response_schema_map[template]

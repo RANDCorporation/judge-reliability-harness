@@ -29,12 +29,33 @@ class LLMClientConfig(BaseModel):
 	max_tokens: int = Field(1200, gt=0, description="Maximum tokens for LLMs.")
 
 
+class JudgeConfig(BaseModel):
+	"""Configuration for a single judge in multi-judge mode."""
+
+	name: str = Field(..., description="Unique name identifier for this judge.")
+	model: str = Field(..., description="Model identifier (e.g., openai/gpt-4o-mini).")
+	template: Optional[str] = Field(
+		None, description="Template to use for this judge (defaults to evaluation_config.template)."
+	)
+	preprocess_columns_map: Dict[str, str] = Field(
+		default_factory=dict,
+		description="Column mapping for this judge (request, response, expected columns).",
+	)
+
+
 class EvaluationConfig(BaseModel):
 	template: str = Field(..., description="Template to use for aiautograder")
 	autograder_model_name: str = Field(..., description="Model name for autograding.")
 	autograder_model_config: Optional[LLMClientConfig] = Field(
 		None, description="LLM Model config to use for Evaluation stage."
 	)
+
+	# Multiple judges mode
+	judges: Optional[List[JudgeConfig]] = Field(
+		None,
+		description="List of judges for multi-judge evaluation. If provided, each judge evaluates the same perturbed samples.",
+	)
+
 	overwrite_results: bool = Field(True, description="Should overwrite existing results in storage.")
 	max_workers: int = Field(10, description="Max number of workers to use when deploying in parallel.")
 
@@ -47,9 +68,32 @@ class EvaluationConfig(BaseModel):
 	get_cost_curves: bool = Field(False, description="Whether to run the cost curves module at reporting stage.")
 	output_file_format: Literal["csv", "xlsx"] = Field("csv", description="File format for evaluator outputs.")
 
+	# Judge aggregation (for multi-judge mode)
+	aggregation_method: Optional[str] = Field(
+		None,
+		description="Method to aggregate multiple judge scores. Options: 'majority_vote' (or None to skip aggregation).",
+	)
+	aggregation_reference_column: Optional[str] = Field(
+		None,
+		description="Column name in original dataset to compare aggregated result against (e.g., 'majority_vote'). Only used if aggregation_method is set.",
+	)
+
 	@field_validator("tests_to_evaluate", mode="before")
 	def handle_none(cls, v):
 		return v or []
+
+	@field_validator("judges", mode="before")
+	def handle_judges(cls, v):
+		"""Ensure judges is a list if provided."""
+		if v is None:
+			return None
+		if isinstance(v, list):
+			return v
+		return [v]  # Convert single judge dict to list
+
+	def is_multi_judge_mode(self) -> bool:
+		"""Check if this config is using multiple judges."""
+		return self.judges is not None and len(self.judges) > 0
 
 
 class DatasetConfig(BaseModel):

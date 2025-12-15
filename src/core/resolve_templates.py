@@ -62,7 +62,15 @@ def get_prompt(prompt_name: str, custom_prompts_dir: str | None = "./prompts/tem
 	missing_vars = template_vars - set(variables.keys())
 
 	if missing_vars:
-		console.print(f"[red] [WARNING] Missing required variables for '{prompt_name}': {missing_vars}[/]")
+		# Build warning message with special handling for rubric
+		warning_parts = []
+		for var in sorted(missing_vars):
+			if var == "rubric":
+				warning_parts.append(f"'{var}' (going to use rubric column from dataset)")
+			else:
+				warning_parts.append(f"'{var}'")
+		warning_msg = ", ".join(warning_parts)
+		console.print(f"[red] [WARNING] Missing required variables for '{prompt_name}': {warning_msg}[/]")
 
 	result = template
 	for var_name, value in variables.items():

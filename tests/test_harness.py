@@ -35,15 +35,17 @@ class MockEvaluator:
 
 	def grade_original_preprocess(self, df):
 		df_copy = df.copy()
-		df_copy["score"] = [1] * len(df_copy)
-		df_copy["reasoning"] = ["ok"] * len(df_copy)
+		# grade_original_preprocess returns autograder_score and autograder_reasoning
+		df_copy["autograder_score"] = [1] * len(df_copy)
+		df_copy["autograder_reasoning"] = ["ok"] * len(df_copy)
 		return df_copy
 
 	def grade_synthetic_data(self, test_name, df):
+		# grade_synthetic_data now returns Dict[str, pd.DataFrame]
 		df_copy = df.copy()
 		df_copy["score"] = [1] * len(df_copy)
 		df_copy["reasoning"] = ["ok"] * len(df_copy)
-		return df_copy
+		return {"single_judge": df_copy}
 
 	def save_evaluated_output(self, test_name, graded_df):
 		# pretend to save, but do nothing
@@ -62,6 +64,13 @@ class MockAdminConfig:
 	class evaluation_config:
 		tests_to_evaluate = ["test1", "test2"]
 		output_file_format = "csv"
+		judges = None
+		aggregation_method = None
+		aggregation_reference_column = None
+
+		@staticmethod
+		def is_multi_judge_mode():
+			return False
 
 	output_file_format = "csv"
 

@@ -12,7 +12,7 @@ class OriginalDataPointConfig(BaseModel):
 	original_idx: str = Field(..., description="index of data point from original dataset")
 	request: str = Field(..., description="request")
 	response: str = Field(..., description="response")
-	expected: int = Field(..., description="expected")
+	expected: Union[int, str] = Field(..., description="expected")
 
 
 class SavedItem(BaseModel):
@@ -23,7 +23,7 @@ class SavedItem(BaseModel):
 	original_request: str = Field(..., description="source question")
 	original_response: Optional[str] = Field(None, description="source response or transcript")
 	original_idx: str = Field(..., description="source item id")
-	original_expected: int = Field(..., description="source gold answer")
+	original_expected: Union[int, str] = Field(..., description="source gold answer")
 	# generation data
 	generation_prompt: Optional[str] = Field(None, description="Prompt/transcript shown to the generator.")
 	generation_response: Union[str, int, bool] = Field(..., description="generation response")
