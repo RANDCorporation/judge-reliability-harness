@@ -20,6 +20,10 @@ website:
         href: agentic_guide.qmd
       - text: "Developer Guide"
         href: developer_guide.qmd
+    right:
+      - icon: github
+        href: https://github.com/RANDCorporation/judge-reliability-harness
+        aria-label: GitHub
 
 format:
   html:

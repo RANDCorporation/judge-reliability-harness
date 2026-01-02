@@ -13,10 +13,10 @@ title: "Installation"
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/tasp-evals/judge-reliability-harness.git
+   git clone https://github.com/RANDCorporation/judge-reliability-harness.git
    cd judge-reliability-harness
    ```
-2. Create and sync the project environment with uv:
+2. Create and sync the project environment with uv (native TLS may not be required based on your security policies):
    ```bash
    uv sync --extra dev --native-tls
    ```
